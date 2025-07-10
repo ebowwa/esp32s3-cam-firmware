@@ -4,6 +4,7 @@
 #include "../system/device_status.h"
 #include "../led/led_manager.h"
 #include "../utils/power_management.h"
+#include "../utils/memory_utils.h"
 #include "../camera/camera.h"
 #include "../bluetooth/ble_manager.h"
 #include "../bluetooth/ble_characteristics.h"
@@ -155,12 +156,16 @@ namespace PowerCycles {
     int battery_update_cycle_id = -1;
     int power_stats_cycle_id = -1;
     int sleep_management_cycle_id = -1;
+    int memory_monitor_cycle_id = -1;
+    int memory_leak_check_cycle_id = -1;
     
     void initialize() {
         Serial.println("Initializing Power Cycles...");
         registerBatteryUpdateCycle();
         registerPowerStatsCycle();
         registerSleepManagementCycle();
+        registerMemoryMonitorCycle();
+        registerMemoryLeakCheckCycle();
     }
     
     void registerBatteryUpdateCycle() {
@@ -251,6 +256,50 @@ namespace PowerCycles {
                 }
             },
             CYCLE_PRIORITY_LOW
+        );
+    }
+    
+    void registerMemoryMonitorCycle() {
+        memory_monitor_cycle_id = registerIntervalCycle(
+            "MemoryMonitor",
+            MEMORY_UPDATE_INTERVAL,
+            []() {
+                updateMemoryStats();
+                
+                // Check memory health
+                if (!memoryHealthCheck()) {
+                    Serial.println("⚠️  Memory health check failed");
+                    updateDeviceStatus(DEVICE_STATUS_ERROR);
+                }
+                
+                // Emergency cleanup if memory pressure is high
+                if (memoryStats.memory_pressure) {
+                    Serial.println("🚨 Memory pressure detected, initiating cleanup");
+                    emergencyMemoryCleanup();
+                    
+                    // Force garbage collection
+                    esp_get_free_heap_size();
+                    
+                    // Update stats after cleanup
+                    updateMemoryStats();
+                }
+            },
+            CYCLE_PRIORITY_HIGH
+        );
+    }
+    
+    void registerMemoryLeakCheckCycle() {
+        memory_leak_check_cycle_id = registerIntervalCycle(
+            "MemoryLeakCheck",
+            MEMORY_LEAK_CHECK_INTERVAL,
+            []() {
+                int leak_count = checkMemoryLeaks();
+                if (leak_count > 0) {
+                    Serial.printf("⚠️  Memory leak check found %d potential leaks\n", leak_count);
+                    printTrackedAllocations();
+                }
+            },
+            CYCLE_PRIORITY_BACKGROUND
         );
     }
 }

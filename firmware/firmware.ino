@@ -6,6 +6,7 @@
 #include "src/utils/mulaw.h"
 #include "src/utils/timing.h"
 #include "src/utils/power_management.h"
+#include "src/utils/memory_utils.h"
 #include "src/utils/cycle_manager.h"
 #include "src/led/led_manager.h"
 #include "src/system/battery_code.h"
@@ -61,10 +62,10 @@ void configure_microphone() {
     while (1); // do nothing
   }
 
-  // Allocate buffers
-  s_recording_buffer = (uint8_t *) ps_calloc(RECORDING_BUFFER_SIZE, sizeof(uint8_t));
-  s_compressed_frame = (uint8_t *) ps_calloc(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t));
-  s_compressed_frame_2 = (uint8_t *) ps_calloc(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t));
+  // Allocate buffers with tracking
+  s_recording_buffer = (uint8_t *) PS_CALLOC_TRACKED(RECORDING_BUFFER_SIZE, sizeof(uint8_t), "AudioRecording");
+  s_compressed_frame = (uint8_t *) PS_CALLOC_TRACKED(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t), "AudioCompressed");
+  s_compressed_frame_2 = (uint8_t *) PS_CALLOC_TRACKED(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t), "AudioCompressed2");
   
   if (!s_recording_buffer || !s_compressed_frame || !s_compressed_frame_2) {
     Serial.println("Failed to allocate audio buffers!");
@@ -106,6 +107,9 @@ void setup() {
   
   // Initialize charging manager
   initializeChargingManager();
+  
+  // Initialize memory manager
+  initializeMemoryManager();
   
   // Initialize centralized cycle manager
   initializeCycleManager();

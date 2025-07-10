@@ -284,6 +284,8 @@ namespace PowerCycles {
     void registerBatteryUpdateCycle();
     void registerPowerStatsCycle();
     void registerSleepManagementCycle();
+    void registerMemoryMonitorCycle();
+    void registerMemoryLeakCheckCycle();
 }
 
 /**

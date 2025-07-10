@@ -1,5 +1,6 @@
 #include "ble_data_handler.h"
 #include "../utils/mulaw.h"
+#include "../utils/memory_utils.h"
 #include "../camera/camera.h"
 
 #ifdef CODEC_OPUS
@@ -16,7 +17,7 @@ void transmitAudioData(uint8_t *audioBuffer, size_t bufferSize, size_t bytesReco
     // Allocate compressed frame buffer
     static uint8_t *compressedFrame = nullptr;
     if (!compressedFrame) {
-        compressedFrame = (uint8_t *)ps_calloc(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t));
+        compressedFrame = (uint8_t *)PS_CALLOC_TRACKED(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t), "BLECompressedFrame");
         if (!compressedFrame) {
             Serial.println("Failed to allocate compressed frame buffer");
             return;
