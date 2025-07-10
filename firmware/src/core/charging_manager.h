@@ -133,6 +133,7 @@ extern bool chargingEnabled;
 void initializeChargingManager();
 void setupChargingService(BLEServer *server);
 void updateChargingStatus();
+void checkUSBConnectionEvent();
 charging_state_t determineChargingState();
 charging_safety_t checkChargingSafety();
 float readChargingCurrent();

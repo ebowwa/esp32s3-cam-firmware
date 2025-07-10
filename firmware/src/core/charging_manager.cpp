@@ -25,6 +25,7 @@ static unsigned long lastSafetyCheck = 0;
 static charging_state_t previousState = CHARGING_STATE_UNKNOWN;
 static float currentHistory[10] = {0};
 static int currentHistoryIndex = 0;
+static bool previousUsbConnected = false;
 
 void initializeChargingManager() {
     Serial.println("Initializing Advanced Charging Manager...");
@@ -93,17 +94,21 @@ void setupChargingService(BLEServer *server) {
 }
 
 void updateChargingStatus() {
+    // Always check USB connection status immediately (not time-based)
+    checkUSBConnectionEvent();
+    
+    // Only do full charging update on timer
     if (millis() - lastChargingUpdate < CHARGING_UPDATE_INTERVAL) {
         return;
     }
+    
+    Serial.println("🔍 Full charging status update...");
     
     // Update basic measurements
     chargingStats.voltage = readBatteryVoltage();
     chargingStats.current = readChargingCurrent();
     chargingStats.power = chargingStats.voltage * chargingStats.current;
     chargingStats.temperature = readBatteryTemperature();
-    chargingStats.usb_voltage = readUSBPowerVoltage();
-    chargingStats.usb_connected = (chargingStats.usb_voltage >= USB_POWER_THRESHOLD);
     chargingStats.charge_level = batteryLevel;
     
     // Determine charging state
@@ -462,4 +467,47 @@ void resetChargingStats() {
     chargingHistoryIndex = 0;
     memset(chargingHistory, 0, sizeof(chargingHistory));
     Serial.println("Charging stats reset");
+}
+
+void checkUSBConnectionEvent() {
+    // Read USB voltage immediately (not time-based)
+    chargingStats.usb_voltage = readUSBPowerVoltage();
+    chargingStats.usb_connected = (chargingStats.usb_voltage >= USB_POWER_THRESHOLD);
+    
+    // Check for USB connection event (plugged in)
+    if (chargingStats.usb_connected && !previousUsbConnected) {
+        Serial.println("🔌 USB POWER CONNECTED - FLASHING GREEN!");
+        Serial.printf("USB voltage detected: %.2fV\n", chargingStats.usb_voltage);
+        
+        // Flash green LEDs immediately to indicate USB connection
+        Serial.println("Flash 1...");
+        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
+        delay(200);
+        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
+        delay(100);
+        
+        Serial.println("Flash 2...");
+        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
+        delay(200);
+        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
+        delay(100);
+        
+        Serial.println("Flash 3...");
+        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
+        delay(200);
+        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
+        
+        Serial.println("✅ Green flash sequence completed!");
+        
+        // Trigger immediate full charging status update
+        lastChargingUpdate = 0; // Force immediate update
+    }
+    
+    // Check for USB disconnection event
+    if (!chargingStats.usb_connected && previousUsbConnected) {
+        Serial.println("🔌 USB power disconnected");
+    }
+    
+    // Update USB connection state for next check
+    previousUsbConnected = chargingStats.usb_connected;
 } 
