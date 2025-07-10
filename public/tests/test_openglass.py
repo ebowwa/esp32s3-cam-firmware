@@ -169,8 +169,18 @@ async def main():
         if not await client.setup_notifications():
             return
         
-        # Wait a moment for device status
-        await asyncio.sleep(2)
+        # Wait for device to be ready
+        print("Waiting for device to be ready...")
+        for i in range(10):  # Wait up to 10 seconds
+            await asyncio.sleep(1)
+            if client.device_status == 0x03:  # READY
+                print("Device is ready!")
+                break
+            print(f"Device status: 0x{client.device_status:02X}, waiting...")
+        
+        if client.device_status != 0x03:
+            print(f"Device not ready after waiting (status: 0x{client.device_status:02X})")
+            return
         
         # Trigger single photo
         if not await client.trigger_single_photo():

@@ -6,6 +6,7 @@
 #include "src/utils/mulaw.h"
 #include "src/utils/timing.h"
 #include "src/utils/power_management.h"
+#include "src/utils/cycle_manager.h"
 #include "src/led/led_manager.h"
 #include "src/system/battery_code.h"
 #include "src/system/charging_manager.h"
@@ -47,9 +48,9 @@ void handleVideoControl(uint8_t controlValue);
 // Microphone
 //
 
-static uint8_t *s_recording_buffer = nullptr;
+uint8_t *s_recording_buffer = nullptr;
 static uint8_t *s_compressed_frame = nullptr;
-static uint8_t *s_compressed_frame_2 = nullptr;
+uint8_t *s_compressed_frame_2 = nullptr;
 
 void configure_microphone() {
   // start I2S at 16 kHz with 16-bits per sample
@@ -105,6 +106,9 @@ void setup() {
   
   // Initialize charging manager
   initializeChargingManager();
+  
+  // Initialize centralized cycle manager
+  initializeCycleManager();
   
   updateDeviceStatus(DEVICE_STATUS_BLE_INIT);
   configureBLE();
@@ -163,199 +167,27 @@ void setup() {
   deviceReady = true;
   updateDeviceStatus(DEVICE_STATUS_READY);
   Serial.println("OpenGlass ready!");
+  
+  // Initialize all specialized cycle managers
+  ChargingCycles::initialize();
+  LEDCycles::initialize();
+  PowerCycles::initialize();
+  DataCycles::initialize();
+  CommCycles::initialize();
+  
+  Serial.println("All cycle managers initialized");
 }
 
 void loop() {
-  // Update LED first (always, even if device not ready)
-  updateLed();
+  // Update all cycles using centralized cycle manager
+  updateCycles();
   
-  // Only proceed with normal operations if device is ready
-  if (!deviceReady) {
-    delay(MAIN_LOOP_DELAY);
-    return;
-  }
-
-  // Read from mic
-  size_t bytes_recorded = read_microphone();
-
-  // Push audio to BLE using BLE manager
-  if (bytes_recorded > 0 && isConnected()) {
-    BLEManager::transmitAudio(s_recording_buffer, RECORDING_BUFFER_SIZE, bytes_recorded);
-  }
-
-  // Take a photo using timing utilities
-  // Don't take a photo if we are already sending data for previous photo
-  if (isCapturingPhotos && !photoDataUploading && isConnected())
-  {
-    bool shouldCapture = false;
-    
-    if (captureInterval == 0) {
-      // Single photo requested - capture immediately
-      shouldCapture = true;
-    } else {
-      // Interval capture - check if enough time has passed
-      shouldCapture = hasTimedOut(lastCaptureTime, captureInterval);
-    }
-    
-    if (shouldCapture) {
-      if (captureInterval == 0) {
-        // Single photo requested
-        isCapturingPhotos = false;
-      }
-
-      // Take the photo
-      if (take_photo())
-      {
-        photoDataUploading = true;
-        sent_photo_bytes = 0;
-        sent_photo_frames = 0;
-        lastCaptureTime = millis();
-        isStreamingFrame = false;
-      }
-    }
-  }
-
-  // Video streaming logic
-  if (isStreamingVideo && !photoDataUploading && isConnected()) {
-    if (!shouldDropFrame()) {
-      unsigned long frameInterval = VIDEO_STREAM_FRAME_INTERVAL(streamingFPS);
-      
-      if (hasTimedOut(lastStreamFrame, frameInterval)) {
-        if (take_photo()) {
-          photoDataUploading = true;
-          sent_photo_bytes = 0;
-          sent_photo_frames = 0;
-          lastStreamFrame = millis();
-          isStreamingFrame = true;
-          totalStreamingFrames++;
-        }
-      }
-    }
-  }
-
-  // Push photo/video data to BLE
-  if (photoDataUploading && fb && isConnected()) {
-    size_t remaining = fb->len - sent_photo_bytes;
-    if (remaining > 0) {
-      // Populate buffer with frame type header
-      s_compressed_frame_2[0] = sent_photo_frames & 0xFF;
-      s_compressed_frame_2[1] = (sent_photo_frames >> 8) & 0xFF;
-      s_compressed_frame_2[2] = isStreamingFrame ? 0x02 : 0x01; // Frame type: 0x02 = streaming, 0x01 = single photo
-      size_t bytes_to_copy = remaining;
-      if (bytes_to_copy > PHOTO_CHUNK_SIZE - 1) { // Account for frame type byte
-        bytes_to_copy = PHOTO_CHUNK_SIZE - 1;
-      }
-      
-      // Bounds check
-      if (sent_photo_bytes + bytes_to_copy <= fb->len) {
-        memcpy(&s_compressed_frame_2[3], &fb->buf[sent_photo_bytes], bytes_to_copy);
-
-        // Push to appropriate BLE characteristic using BLE manager
-        if (isStreamingFrame) {
-          BLEManager::transmitVideo(s_compressed_frame_2, bytes_to_copy + 3, sent_photo_frames);
-        } else {
-          BLEManager::transmitPhoto(s_compressed_frame_2, bytes_to_copy + 3, sent_photo_frames);
-        }
-        sent_photo_bytes += bytes_to_copy;
-        sent_photo_frames++;
-      } else {
-        Serial.println("Photo/video upload bounds error, stopping");
-        photoDataUploading = false;
-      }
-    } else {
-      // End flag using BLE manager
-      if (isStreamingFrame) {
-        BLEManager::transmitVideoEnd();
-        Serial.printf("Video frame completed: %d bytes in %d frames\n", sent_photo_bytes, sent_photo_frames);
-      } else {
-        BLEManager::transmitPhotoEnd();
-        Serial.printf("Photo upload completed: %d bytes in %d frames\n", sent_photo_bytes, sent_photo_frames);
-      }
-      photoDataUploading = false;
-    }
-  } else if (photoDataUploading && !isConnected()) {
-    // Connection lost during upload
+  // Handle connection loss during photo/video upload
+  if (photoDataUploading && !isConnected()) {
     Serial.println("Connection lost during photo/video upload, stopping");
     photoDataUploading = false;
   }
-
-  // Update battery and charging status using timing utilities
-  if (shouldExecute(&lastBatteryUpdate, BATTERY_UPDATE_INTERVAL))
-  {
-    updateBatteryLevel();
-    
-    // Update advanced charging status
-    updateChargingStatus();
-    
-    // Update power statistics
-    float batteryVoltage = readBatteryVoltage();
-    bool cameraActive = isCapturingPhotos || photoDataUploading;
-    updatePowerStats(batteryVoltage, false, isConnected(), cameraActive);
-    
-    // Optimize power based on battery level and charging state
-    optimizePowerForBattery(batteryLevel, chargingStats.state != CHARGING_STATE_NOT_CHARGING);
-    
-    // Check if battery status changed
-    if (!batteryDetected && deviceReady) {
-      Serial.println("Battery disconnected during operation!");
-      updateDeviceStatus(DEVICE_STATUS_BATTERY_NOT_DETECTED);
-    } else if (batteryDetected && deviceStatus == DEVICE_STATUS_BATTERY_NOT_DETECTED) {
-      Serial.println("Battery reconnected!");
-      updateDeviceStatus(DEVICE_STATUS_READY);
-    }
-    
-    // Check for unstable battery connection
-    if (batteryDetected && !connectionStable && deviceReady) {
-      Serial.println("⚠️  Unstable battery connection detected!");
-      updateDeviceStatus(DEVICE_STATUS_BATTERY_UNSTABLE);
-    } else if (batteryDetected && connectionStable && deviceStatus == DEVICE_STATUS_BATTERY_UNSTABLE) {
-      Serial.println("✅ Battery connection stabilized");
-      updateDeviceStatus(DEVICE_STATUS_READY);
-    }
-    
-    // Check charging status and update device status accordingly
-    if (isCharging && deviceReady && deviceStatus != DEVICE_STATUS_CHARGING) {
-      Serial.println("Device is now charging!");
-      updateDeviceStatus(DEVICE_STATUS_CHARGING);
-    } else if (!isCharging && deviceStatus == DEVICE_STATUS_CHARGING) {
-      Serial.println("Device is no longer charging");
-      updateDeviceStatus(DEVICE_STATUS_READY);
-    }
-    
-    // Print power statistics periodically (every 10 battery updates)
-    static int powerStatsPrintCounter = 0;
-    if (++powerStatsPrintCounter >= 10) {
-      printPowerStats();
-      powerStatsPrintCounter = 0;
-    }
-  }
-
-  // Power management - check for idle state
-  static unsigned long lastActivityTime = millis();
   
-  // Update activity time if there's active operation
-  if (isConnected() || isCapturingPhotos || photoDataUploading || isStreamingVideo) {
-    lastActivityTime = millis();
-  }
-  
-  // Check if we should enter power saving mode
-  unsigned long idleTime = millis() - lastActivityTime;
-  if (shouldEnterPowerSaving(batteryLevel, idleTime)) {
-    // Enter light sleep for a short period if idle
-    if (idleTime > POWER_IDLE_TIMEOUT_MS && !isConnected()) {
-      Serial.println("Device idle, entering light sleep...");
-      prepareForSleep();
-      enterLightSleep(1000); // Sleep for 1 second
-      wakeFromSleep();
-    }
-  }
-  
-  // Main loop delay using timing utilities
-  static unsigned long mainLoopDelayTime = 0;
-  if (nonBlockingDelayStateful(&mainLoopDelayTime, MAIN_LOOP_DELAY)) {
-    // Delay completed, continue loop
-  } else {
-    // For main loop, we still use blocking delay to maintain timing
-    delay(MAIN_LOOP_DELAY);
-  }
+  // Small delay to prevent excessive CPU usage
+  delay(MAIN_LOOP_DELAY);
 }
