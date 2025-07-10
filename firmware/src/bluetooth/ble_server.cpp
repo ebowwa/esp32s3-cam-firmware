@@ -2,6 +2,7 @@
 #include "ble_services.h"
 #include "../core/device_status.h"
 #include "../core/battery_code.h"
+#include "../core/charging_manager.h"
 
 // BLE Server instance
 BLEServer *bleServer = nullptr;
@@ -55,6 +56,9 @@ void configureBLEServer() {
     // Setup battery service
     setupBatteryService(bleServer);
     
+    // Setup charging service
+    setupChargingService(bleServer);
+    
     Serial.println("BLE services configured");
 }
 
@@ -88,6 +92,7 @@ void startBLEAdvertising() {
     // Add service UUIDs to advertising
     advertising->addServiceUUID(BATTERY_SERVICE_UUID);
     advertising->addServiceUUID(DEVICE_INFORMATION_SERVICE_UUID);
+    advertising->addServiceUUID(CHARGING_SERVICE_UUID);
     
     if (mainService) {
         advertising->addServiceUUID(mainService->getUUID());

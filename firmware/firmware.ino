@@ -8,6 +8,7 @@
 #include "src/utils/power_management.h"
 #include "src/utils/led_manager.h"
 #include "src/core/battery_code.h"
+#include "src/core/charging_manager.h"
 #include "src/platform/constants.h"
 #include "src/core/device_status.h"
 #include "src/camera/camera.h"
@@ -101,6 +102,9 @@ void setup() {
   
   // Initialize power management
   initializePowerManagement();
+  
+  // Initialize charging manager
+  initializeChargingManager();
   
   updateDeviceStatus(DEVICE_STATUS_BLE_INIT);
   configureBLE();
@@ -275,18 +279,21 @@ void loop() {
     photoDataUploading = false;
   }
 
-  // Update battery level using timing utilities
+  // Update battery and charging status using timing utilities
   if (shouldExecute(&lastBatteryUpdate, BATTERY_UPDATE_INTERVAL))
   {
     updateBatteryLevel();
+    
+    // Update advanced charging status
+    updateChargingStatus();
     
     // Update power statistics
     float batteryVoltage = readBatteryVoltage();
     bool cameraActive = isCapturingPhotos || photoDataUploading;
     updatePowerStats(batteryVoltage, false, isConnected(), cameraActive);
     
-    // Optimize power based on battery level
-    optimizePowerForBattery(batteryLevel, isCharging);
+    // Optimize power based on battery level and charging state
+    optimizePowerForBattery(batteryLevel, chargingStats.state != CHARGING_STATE_NOT_CHARGING);
     
     // Check if battery status changed
     if (!batteryDetected && deviceReady) {
