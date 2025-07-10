@@ -1,6 +1,6 @@
 #include "ble_characteristics.h"
-#include "../core/device_status.h"
-#include "../core/battery_code.h"
+#include "../system/device_status.h"
+#include "../system/battery_code.h"
 #include "../camera/camera.h"
 
 // BLE Characteristics - Audio

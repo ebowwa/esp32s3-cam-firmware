@@ -2,7 +2,7 @@
 #define LED_MANAGER_H
 
 #include <Arduino.h>
-#include "../hardware/xiao_esp32s3_constants.h"
+#include "../platform/xiao_esp32s3_constants.h"
 
 // ===================================================================
 // DUAL LED MANAGEMENT FOR XIAO ESP32-S3

@@ -5,7 +5,7 @@
 #define XIAO_ESP32S3_SENSE
 
 #include "../src/utils/timing.h"
-#include "../src/hardware/xiao_esp32s3_constants.h"
+#include "../src/platform/xiao_esp32s3_constants.h"
 
 void setup() {
   Serial.begin(XIAO_ESP32S3_SERIAL_BAUD_RATE);

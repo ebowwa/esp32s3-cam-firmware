@@ -1,7 +1,7 @@
-#include "core/device_status.h"
-#include "bluetooth/ble_services.h"
-#include "hardware/xiao_esp32s3_constants.h"
-#include "utils/led_manager.h"
+#include "device_status.h"
+#include "../bluetooth/ble_services.h"
+#include "../platform/xiao_esp32s3_constants.h"
+#include "../led/led_manager.h"
 
 BLECharacteristic *deviceStatusCharacteristic = nullptr;
 uint8_t deviceStatus = DEVICE_STATUS_INITIALIZING;

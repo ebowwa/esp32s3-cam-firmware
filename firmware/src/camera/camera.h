@@ -3,7 +3,7 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #include <Arduino.h>
 #include "esp_camera.h"
-#include "../hardware/camera_pins.h"
+#include "../platform/camera_pins.h"
 #include "../platform/constants.h"
 
 // Camera state variables (extern declarations)

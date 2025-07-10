@@ -2,15 +2,15 @@
 #define XIAO_ESP32S3_SENSE  // Enable Sense version constants
 #include <I2S.h>
 #include "esp_camera.h"
-#include "src/hardware/camera_pins.h"
+#include "src/platform/camera_pins.h"
 #include "src/utils/mulaw.h"
 #include "src/utils/timing.h"
 #include "src/utils/power_management.h"
-#include "src/utils/led_manager.h"
-#include "src/core/battery_code.h"
-#include "src/core/charging_manager.h"
+#include "src/led/led_manager.h"
+#include "src/system/battery_code.h"
+#include "src/system/charging_manager.h"
 #include "src/platform/constants.h"
-#include "src/core/device_status.h"
+#include "src/system/device_status.h"
 #include "src/camera/camera.h"
 #include "src/bluetooth/ble_manager.h"
 

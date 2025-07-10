@@ -1,6 +1,6 @@
 #include "ble_callbacks.h"
-#include "../utils/led_manager.h"
-#include "../core/device_status.h"
+#include "../led/led_manager.h"
+#include "../system/device_status.h"
 
 // Connection state
 bool bleConnected = false;

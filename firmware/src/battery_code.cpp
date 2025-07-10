@@ -1,5 +1,5 @@
-#include "core/battery_code.h"
-#include "hardware/xiao_esp32s3_constants.h"
+#include "system/battery_code.h"
+#include "platform/xiao_esp32s3_constants.h"
 
 BLECharacteristic *batteryLevelCharacteristic = nullptr;
 uint8_t batteryLevel = 100;

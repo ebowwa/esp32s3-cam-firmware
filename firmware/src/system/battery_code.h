@@ -6,7 +6,7 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 #include "../platform/constants.h"
-#include "../hardware/xiao_esp32s3_constants.h"
+#include "../platform/xiao_esp32s3_constants.h"
 
 // Battery Level Service UUIDs
 #define BATTERY_SERVICE_UUID (uint16_t)0x180F

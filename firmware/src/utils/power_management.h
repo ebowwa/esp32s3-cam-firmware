@@ -6,7 +6,7 @@
 #include <esp_pm.h>
 #include <esp_wifi.h>
 #include <esp_bt.h>
-#include "../hardware/xiao_esp32s3_constants.h"
+#include "../platform/xiao_esp32s3_constants.h"
 
 // ===================================================================
 // POWER MANAGEMENT UTILITIES

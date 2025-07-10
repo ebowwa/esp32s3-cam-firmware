@@ -6,7 +6,7 @@
 #include <BLEServer.h>
 #include <BLE2902.h>
 #include "../platform/constants.h"
-#include "../hardware/xiao_esp32s3_constants.h"
+#include "../platform/xiao_esp32s3_constants.h"
 
 // ===================================================================
 // ADVANCED CHARGING MANAGEMENT SYSTEM

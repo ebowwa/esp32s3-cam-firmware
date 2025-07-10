@@ -1,8 +1,8 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #include "camera.h"
 #include "../utils/timing.h"
-#include "../utils/led_manager.h"
-#include "../core/device_status.h"
+#include "../led/led_manager.h"
+#include "../system/device_status.h"
 
 // External reference to connection status
 // Note: BLE connection state is now managed by BLE manager

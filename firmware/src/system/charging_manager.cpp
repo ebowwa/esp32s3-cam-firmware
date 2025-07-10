@@ -1,7 +1,7 @@
 #include "charging_manager.h"
-#include "../utils/led_manager.h"
-#include "../core/device_status.h"
-#include "../core/battery_code.h"
+#include "../led/led_manager.h"
+#include "device_status.h"
+#include "battery_code.h"
 
 // BLE Characteristics
 BLECharacteristic *chargingStateCharacteristic = nullptr;

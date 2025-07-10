@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../hardware/xiao_esp32s3_constants.h"
+#include "xiao_esp32s3_constants.h"
 
 // Audio Configuration
 #define CODEC_PCM

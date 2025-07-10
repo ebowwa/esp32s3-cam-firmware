@@ -1,8 +1,8 @@
 #include "ble_server.h"
 #include "ble_services.h"
-#include "../core/device_status.h"
-#include "../core/battery_code.h"
-#include "../core/charging_manager.h"
+#include "../system/device_status.h"
+#include "../system/battery_code.h"
+#include "../system/charging_manager.h"
 
 // BLE Server instance
 BLEServer *bleServer = nullptr;
