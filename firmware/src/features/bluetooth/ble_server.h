@@ -6,7 +6,7 @@
 #include <BLEAdvertising.h>
 #include "services/ble_services.h"
 #include "characteristics/ble_characteristics.h"
-#include "ble_callbacks.h"
+#include "callbacks/callbacks.h"
 
 // BLE Server instance
 extern BLEServer *bleServer;

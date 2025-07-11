@@ -1,5 +1,5 @@
 #include "ble_characteristics.h"
-#include "../../../system/device_status.h"
+#include "../../../status/device_status.h"
 #include "../../../system/battery/battery_code.h"
 #include "../../camera/camera.h"
 // #include "../utils/hotspot_manager.h"  // DISABLED: Causes BLE interference

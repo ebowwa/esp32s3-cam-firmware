@@ -4,7 +4,7 @@
 #include "services/ble_services.h"
 #include "ble_server.h"
 #include "characteristics/ble_characteristics.h"
-#include "ble_callbacks.h"
+#include "callbacks/callbacks.h"
 #include "ble_data_handler.h"
 
 // Main BLE Manager Interface

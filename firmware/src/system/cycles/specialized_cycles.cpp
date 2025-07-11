@@ -1,7 +1,7 @@
 #include "cycle_manager.h"
 #include "../charging/charging_manager.h"
 #include "../battery/battery_code.h"
-#include "../device_status.h"
+#include "../../status/device_status.h"
 #include "../../hal/led/led_manager.h"
 #include "../power_management/power_management.h"
 #include "../memory/memory_utils.h"

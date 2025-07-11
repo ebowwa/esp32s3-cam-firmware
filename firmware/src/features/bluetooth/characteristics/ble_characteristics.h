@@ -7,7 +7,7 @@
 #include <BLECharacteristic.h>
 #include <BLE2902.h>
 #include "../services/ble_services.h"
-#include "../ble_callbacks.h"
+#include "../callbacks/callbacks.h"
 #include "../../../hal/constants.h"
 #include "../../camera/camera.h"
 

@@ -7,7 +7,7 @@
 #include "../src/hal/camera_pins.h"
 #include "../src/hal/constants.h"
 #include "../src/system/battery/battery_code.h"
-#include "../src/system/device_status.h"
+#include "../src/status/device_status.h"
 #include "../src/utils/mulaw.h"
 
 void setup() {

@@ -2,11 +2,11 @@
 #include "camera.h"
 #include "../../system/clock/timing.h"
 #include "../../hal/led/led_manager.h"
-#include "../../system/device_status.h"
+#include "../../status/device_status.h"
 
 // External reference to connection status
 // Note: BLE connection state is now managed by BLE manager
-#include "../bluetooth/ble_callbacks.h"
+#include "../bluetooth/callbacks/callbacks.h"
 
 // Camera state variables (defined here, declared in header)
 camera_fb_t *fb = nullptr;

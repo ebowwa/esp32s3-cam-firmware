@@ -13,7 +13,7 @@
 #include "src/system/battery/battery_code.h"
 #include "src/system/charging/charging_manager.h"
 #include "src/hal/constants.h"
-#include "src/system/device_status.h"
+#include "src/status/device_status.h"
 #include "src/features/camera/camera.h"
 #include "src/features/bluetooth/ble_manager.h"
 
@@ -36,7 +36,7 @@ OpusEncoder *opus_encoder = nullptr;
 void handlePhotoControl(int8_t controlValue);
 void handleVideoControl(uint8_t controlValue);
 
-// Note: BLE callback classes are now in src/bluetooth/ble_callbacks.h
+// Note: BLE callback classes are now in src/bluetooth/callbacks/
 
 // Note: BLE configuration is now handled by the BLE manager
 // See src/bluetooth/ble_manager.h for the new interface

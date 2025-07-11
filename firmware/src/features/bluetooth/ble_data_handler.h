@@ -2,7 +2,7 @@
 
 #include <Arduino.h>
 #include "characteristics/ble_characteristics.h"
-#include "ble_callbacks.h"
+#include "callbacks/callbacks.h"
 #include "../../hal/constants.h"
 
 // Audio frame management
@@ -22,7 +22,4 @@ bool isReadyForTransmission();
 void resetTransmissionState();
 
 // Initialize BLE data handler
-void initializeBLEDataHandler();
-
-// Hotspot status update
-void updateHotspotStatus(); 
+void initializeBLEDataHandler(); 

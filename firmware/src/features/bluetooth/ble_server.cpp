@@ -1,6 +1,6 @@
 #include "ble_server.h"
 #include "services/ble_services.h"
-#include "../../system/device_status.h"
+#include "../../status/device_status.h"
 #include "../../system/battery/battery_code.h"
 #include "../../system/charging/charging_manager.h"
 
