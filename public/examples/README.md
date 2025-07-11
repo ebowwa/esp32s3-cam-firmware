@@ -90,7 +90,7 @@ From the examples directory, use relative paths to access the organized firmware
 #include "../core/battery_code.h"
 #include "../core/device_status.h"
 #include "../utils/mulaw.h"
-#include "../utils/timing.h"
+#include "../firmware/src/system/clock/timing.h"
 #include "../utils/power_management.h"
 ```
 

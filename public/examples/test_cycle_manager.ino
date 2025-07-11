@@ -4,8 +4,8 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #define XIAO_ESP32S3_SENSE
 
-#include "../firmware/src/utils/cycle_manager.h"
-#include "../firmware/src/platform/xiao_esp32s3_constants.h"
+#include "../firmware/src/system/cycles/cycle_manager.h"
+#include "../firmware/src/hal/xiao_esp32s3_constants.h"
 
 // Test cycle IDs
 int test_interval_cycle_id = -1;

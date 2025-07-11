@@ -2,79 +2,77 @@
 import asyncio
 import sys
 from bleak import BleakClient, BleakScanner
+import time
 
 # OpenGlass UUIDs
 SERVICE_UUID = "19B10000-E8F2-537E-4F6C-D104768A1214"
 PHOTO_DATA_UUID = "19B10005-E8F2-537E-4F6C-D104768A1214"
 PHOTO_CONTROL_UUID = "19B10006-E8F2-537E-4F6C-D104768A1214"
-DEVICE_STATUS_UUID = "19B10007-E8F2-537E-4F6C-D104768A1214"
 
 class OpenGlassClient:
     def __init__(self):
         self.client = None
+        self.device_address = None
         self.photo_data = bytearray()
         self.photo_frames = 0
         self.receiving_photo = False
-        self.photo_received = False  # Track if photo was successfully received
-        self.device_status = 0
+        self.photo_received = False
         
-    async def scan_and_connect(self):
-        print("Scanning for OpenGlass device...")
-        devices = await BleakScanner.discover()
-        
-        openglass_device = None
-        for device in devices:
-            if device.name == "OpenGlass":
-                openglass_device = device
-                break
-                
-        if not openglass_device:
-            print("OpenGlass device not found!")
-            return False
-            
-        print(f"Found OpenGlass at {openglass_device.address}")
-        
-        # Connect to device
-        self.client = BleakClient(openglass_device.address)
-        await self.client.connect()
-        
-        if self.client.is_connected:
-            print("Connected to OpenGlass!")
-            
-            # Get device info
+    async def scan_and_connect(self, max_retries=3):
+        """Scan for and connect to OpenGlass device with retry logic"""
+        for attempt in range(max_retries):
             try:
-                services = self.client.services
-                print(f"Available services: {len(list(services))}")
-                for service in services:
-                    print(f"  Service: {service.uuid}")
-                    for char in service.characteristics:
-                        print(f"    Characteristic: {char.uuid} - {char.properties}")
-            except Exception as e:
-                print(f"Error getting services: {e}")
+                print(f"Scanning for OpenGlass device (attempt {attempt + 1}/{max_retries})...")
+                devices = await BleakScanner.discover(timeout=10.0)
                 
-            return True
-        else:
-            print("Failed to connect to OpenGlass!")
-            return False
+                openglass_device = None
+                for device in devices:
+                    if device.name == "OpenGlass":
+                        openglass_device = device
+                        break
+                        
+                if not openglass_device:
+                    print("OpenGlass device not found!")
+                    if attempt < max_retries - 1:
+                        print("Retrying in 2 seconds...")
+                        await asyncio.sleep(2)
+                        continue
+                    return False
+                    
+                print(f"Found OpenGlass at {openglass_device.address}")
+                self.device_address = openglass_device.address
+                
+                # Connect to device with timeout
+                self.client = BleakClient(openglass_device.address, timeout=30.0)
+                
+                print("Connecting to device...")
+                await self.client.connect()
+                
+                if self.client.is_connected:
+                    print("✅ Connected to OpenGlass!")
+                    return True
+                else:
+                    print("❌ Failed to connect to OpenGlass!")
+                    
+            except Exception as e:
+                print(f"Connection attempt {attempt + 1} failed: {e}")
+                if self.client and self.client.is_connected:
+                    try:
+                        await self.client.disconnect()
+                    except:
+                        pass
+                        
+            if attempt < max_retries - 1:
+                print("Retrying in 3 seconds...")
+                await asyncio.sleep(3)
+                
+        return False
     
-    def device_status_handler(self, sender, data):
-        """Handle device status updates"""
-        if len(data) >= 1:
-            self.device_status = data[0]
-            status_names = {
-                0x01: "INITIALIZING",
-                0x02: "WARMING_UP", 
-                0x03: "READY",
-                0x04: "ERROR",
-                0x05: "CAMERA_INIT",
-                0x06: "MICROPHONE_INIT",
-                0x07: "BLE_INIT",
-                0x08: "BATTERY_NOT_DETECTED",
-                0x09: "CHARGING",
-                0x0A: "BATTERY_UNSTABLE"
-            }
-            status_name = status_names.get(self.device_status, f"UNKNOWN_{self.device_status:02X}")
-            print(f"Device Status: {status_name} (0x{self.device_status:02X})")
+    def check_connection(self):
+        """Check if client is connected"""
+        connected = self.client and self.client.is_connected
+        print(f"🔍 Connection status: {'✅ Connected' if connected else '❌ Disconnected'}")
+        return connected
     
     def photo_data_handler(self, sender, data):
         """Handle incoming photo data"""
@@ -84,15 +82,17 @@ class OpenGlassClient:
             
         # Check for end marker
         if data[0] == 0xFF and data[1] == 0xFF:
-            print(f"Photo complete! Received {len(self.photo_data)} bytes in {self.photo_frames} frames")
+            print(f"📸 Photo complete! Received {len(self.photo_data)} bytes in {self.photo_frames} frames")
             self.receiving_photo = False
-            self.photo_received = True  # Mark photo as successfully received
+            self.photo_received = True
             
             # Save photo to file
             if len(self.photo_data) > 0:
-                with open(f"captured_photo_{self.photo_frames}.jpg", "wb") as f:
+                timestamp = int(time.time())
+                filename = f"captured_photo_{timestamp}_{len(self.photo_data)}.jpg"
+                with open(filename, "wb") as f:
                     f.write(self.photo_data)
-                print(f"Photo saved to captured_photo_{self.photo_frames}.jpg")
+                print(f"💾 Photo saved to {filename}")
             
             # Reset for next photo
             self.photo_data = bytearray()
@@ -104,10 +104,10 @@ class OpenGlassClient:
         frame_type = data[2] if len(data) > 2 else 0
         frame_data = data[3:] if len(data) > 3 else data[2:]
         
-        print(f"Received frame {frame_number} (type: 0x{frame_type:02X}): {len(frame_data)} bytes")
+        print(f"📦 Received frame {frame_number} (type: 0x{frame_type:02X}): {len(frame_data)} bytes")
         
         if not self.receiving_photo:
-            print("Starting photo reception...")
+            print("📸 Starting photo reception...")
             self.receiving_photo = True
             self.photo_data = bytearray()
             self.photo_frames = 0
@@ -116,107 +116,139 @@ class OpenGlassClient:
         self.photo_data.extend(frame_data)
         self.photo_frames += 1
     
-    async def setup_notifications(self):
-        """Setup photo data and device status notifications"""
+    async def setup_photo_notifications(self):
+        """Setup photo data notifications"""
         try:
+            if not self.check_connection():
+                return False
+                
+            print("🔔 Setting up photo data notifications...")
             await self.client.start_notify(PHOTO_DATA_UUID, self.photo_data_handler)
-            print("Photo data notifications enabled")
+            print("✅ Photo data notifications enabled")
             
-            await self.client.start_notify(DEVICE_STATUS_UUID, self.device_status_handler)
-            print("Device status notifications enabled")
-            
-            # Read initial device status
-            status_data = await self.client.read_gatt_char(DEVICE_STATUS_UUID)
-            if status_data:
-                self.device_status_handler(None, status_data)
-            
+            # Check connection after notification setup
+            if not self.check_connection():
+                print("❌ Connection lost after setting up notifications!")
+                return False
+                
             return True
+            
         except Exception as e:
-            print(f"Failed to setup notifications: {e}")
+            print(f"❌ Failed to setup notifications: {e}")
+            self.check_connection()
             return False
     
-    async def trigger_single_photo(self):
+    async def trigger_photo_capture(self):
         """Trigger a single photo capture"""
         try:
-            # Check device status first
-            if self.device_status != 0x03:  # Not READY
-                print(f"Warning: Device not ready (status: 0x{self.device_status:02X})")
+            if not self.check_connection():
+                return False
+                
+            print("📸 Triggering photo capture...")
             
             # Send -1 (255 as unsigned byte) to trigger single photo
-            # -1 as signed byte = 255 as unsigned byte = 0xFF
             await self.client.write_gatt_char(PHOTO_CONTROL_UUID, bytearray([255]))
-            print("Single photo trigger sent (value: 255/0xFF)")
+            print("✅ Photo capture command sent")
+            
+            # Check connection after write
+            if not self.check_connection():
+                print("❌ Connection lost after photo trigger!")
+                return False
+                
             return True
+            
         except Exception as e:
-            print(f"Failed to trigger photo: {e}")
+            print(f"❌ Failed to trigger photo: {e}")
+            self.check_connection()
             return False
+    
+    async def wait_for_photo(self, timeout_seconds=30):
+        """Wait for photo data to be received"""
+        print(f"⏳ Waiting for photo data (timeout: {timeout_seconds}s)...")
+        
+        for i in range(timeout_seconds):
+            await asyncio.sleep(1)
+            
+            if self.photo_received:
+                return True
+                
+            if i % 5 == 4:  # Every 5 seconds
+                print(f"⏳ Still waiting... ({i+1}/{timeout_seconds}s)")
+                
+                # Check if still connected
+                if not self.check_connection():
+                    print("❌ Device disconnected while waiting for photo!")
+                    return False
+                    
+                # Show progress if receiving
+                if self.receiving_photo:
+                    print(f"📦 Progress: {len(self.photo_data)} bytes received in {self.photo_frames} frames")
+        
+        return False
     
     async def disconnect(self):
         """Disconnect from device"""
         if self.client and self.client.is_connected:
-            await self.client.disconnect()
-            print("Disconnected from OpenGlass")
+            try:
+                await self.client.disconnect()
+                print("🔌 Disconnected from OpenGlass")
+            except Exception as e:
+                print(f"❌ Error during disconnect: {e}")
 
 async def main():
     client = OpenGlassClient()
     
     try:
-        # Connect to device
-        if not await client.scan_and_connect():
+        # Step 1: Connect to device
+        print("🔍 STEP 1: Connecting to OpenGlass")
+        if not await client.scan_and_connect(max_retries=3):
+            print("❌ Failed to connect to OpenGlass device")
             return
         
-        # Setup notifications
-        if not await client.setup_notifications():
+        # Verify connection
+        client.check_connection()
+        
+        # Step 2: Setup photo notifications
+        print("\n🔍 STEP 2: Setting up photo notifications")
+        if not await client.setup_photo_notifications():
+            print("❌ Failed to setup photo notifications")
             return
         
-        # Wait for device to be ready
-        print("Waiting for device to be ready...")
-        for i in range(10):  # Wait up to 10 seconds
-            await asyncio.sleep(1)
-            if client.device_status == 0x03:  # READY
-                print("Device is ready!")
-                break
-            print(f"Device status: 0x{client.device_status:02X}, waiting...")
+        # Step 3: Wait for connection to stabilize
+        print("\n⏳ Waiting for connection to stabilize...")
+        await asyncio.sleep(3)
         
-        if client.device_status != 0x03:
-            print(f"Device not ready after waiting (status: 0x{client.device_status:02X})")
+        # Verify connection is still stable
+        if not client.check_connection():
+            print("❌ Connection lost during stabilization period")
             return
         
-        # Trigger single photo
-        if not await client.trigger_single_photo():
+        # Step 4: Trigger photo capture
+        print("\n🔍 STEP 3: Triggering photo capture")
+        if not await client.trigger_photo_capture():
+            print("❌ Failed to trigger photo capture")
             return
         
-        # Wait for photo data
-        print("Waiting for photo data...")
-        timeout = 15  # Increased timeout
-        for i in range(timeout):
-            await asyncio.sleep(1)
-            if client.photo_received:
-                break
-            if i % 5 == 4:  # Every 5 seconds
-                print(f"Still waiting... ({i+1}/{timeout}s)")
-        
-        # Check if photo was received
-        if not client.photo_received:
-            if client.receiving_photo:
-                print("Photo reception in progress but not completed!")
-                print(f"Received {len(client.photo_data)} bytes so far in {client.photo_frames} frames")
-            else:
-                print("No photo data received!")
-                print(f"Final device status: 0x{client.device_status:02X}")
-                
-                # Try reading device status one more time
-                try:
-                    status_data = await client.client.read_gatt_char(DEVICE_STATUS_UUID)
-                    if status_data:
-                        print(f"Current device status: 0x{status_data[0]:02X}")
-                except Exception as e:
-                    print(f"Failed to read device status: {e}")
+        # Step 5: Wait for photo data
+        print("\n🔍 STEP 4: Waiting for photo data")
+        if await client.wait_for_photo(timeout_seconds=30):
+            print("\n🎉 SUCCESS: Photo capture completed!")
+            print(f"📊 Final stats: {len(client.photo_data)} bytes received in {client.photo_frames} frames")
         else:
-            print("Photo capture completed successfully!")
+            print("\n❌ FAILED: Photo capture did not complete")
+            if client.receiving_photo:
+                print(f"📊 Partial data: {len(client.photo_data)} bytes received in {client.photo_frames} frames")
+            else:
+                print("💡 Possible causes:")
+                print("   - Device camera not ready")
+                print("   - Camera initialization failed")
+                print("   - Photo control command not processed")
+                print("   - Device firmware issue")
         
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         await client.disconnect()
 

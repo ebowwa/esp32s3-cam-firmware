@@ -2,19 +2,20 @@
 #define XIAO_ESP32S3_SENSE  // Enable Sense version constants
 #include <I2S.h>
 #include "esp_camera.h"
-#include "src/platform/camera_pins.h"
+#include "src/hal/camera_pins.h"
 #include "src/utils/mulaw.h"
-#include "src/utils/timing.h"
-#include "src/utils/power_management.h"
-#include "src/utils/memory_utils.h"
-#include "src/utils/cycle_manager.h"
-#include "src/led/led_manager.h"
-#include "src/system/battery_code.h"
-#include "src/system/charging_manager.h"
-#include "src/platform/constants.h"
+#include "src/system/clock/timing.h"
+#include "src/system/power_management/power_management.h"
+#include "src/system/memory/memory_utils.h"
+// #include "src/utils/hotspot_manager.h"  // DISABLED: Causes BLE interference
+#include "src/system/cycles/cycle_manager.h"
+#include "src/features/led/led_manager.h"
+#include "src/system/battery/battery_code.h"
+#include "src/system/charging/charging_manager.h"
+#include "src/hal/constants.h"
 #include "src/system/device_status.h"
-#include "src/camera/camera.h"
-#include "src/bluetooth/ble_manager.h"
+#include "src/features/camera/camera.h"
+#include "src/features/bluetooth/ble_manager.h"
 
 // Audio
 
@@ -43,7 +44,7 @@ void handleVideoControl(uint8_t controlValue);
 // Camera functions are now defined in camera_simple.cpp
 
 // handlePhotoControl function is now defined in camera_simple.cpp
-// updateVideoStatus function is now in src/bluetooth/ble_characteristics.cpp
+// updateVideoStatus function is now in src/features/bluetooth/characteristics/ble_characteristics.cpp
 
 //
 // Microphone
@@ -110,6 +111,9 @@ void setup() {
   
   // Initialize memory manager
   initializeMemoryManager();
+  
+  // Initialize hotspot manager
+  // initializeHotspotManager();  // DISABLED: Causes BLE interference
   
   // Initialize centralized cycle manager
   initializeCycleManager();
@@ -179,7 +183,7 @@ void setup() {
   DataCycles::initialize();
   CommCycles::initialize();
   
-  Serial.println("All cycle managers initialized");
+  Serial.println("All cycle managers initialized (hotspot functionality disabled)");
 }
 
 void loop() {

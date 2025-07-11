@@ -7,8 +7,8 @@
 // Uncomment the next line to enable external RGB LED support
 // #define RGB_LED_ENABLED
 
-#include "../src/led/led_manager.h"
-#include "../src/platform/xiao_esp32s3_constants.h"
+#include "../src/features/led/led_manager.h"
+#include "../src/hal/xiao_esp32s3_constants.h"
 
 void setup() {
   Serial.begin(XIAO_ESP32S3_SERIAL_BAUD_RATE);

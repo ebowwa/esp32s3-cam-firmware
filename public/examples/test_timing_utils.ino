@@ -4,8 +4,8 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #define XIAO_ESP32S3_SENSE
 
-#include "../src/utils/timing.h"
-#include "../src/platform/xiao_esp32s3_constants.h"
+#include "../firmware/src/system/clock/timing.h"
+#include "../src/hal/xiao_esp32s3_constants.h"
 
 void setup() {
   Serial.begin(XIAO_ESP32S3_SERIAL_BAUD_RATE);

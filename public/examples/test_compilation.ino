@@ -4,9 +4,9 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #define XIAO_ESP32S3_SENSE
 
-#include "../src/platform/camera_pins.h"
-#include "../src/platform/constants.h"
-#include "../src/system/battery_code.h"
+#include "../src/hal/camera_pins.h"
+#include "../src/hal/constants.h"
+#include "../src/system/battery/battery_code.h"
 #include "../src/system/device_status.h"
 #include "../src/utils/mulaw.h"
 

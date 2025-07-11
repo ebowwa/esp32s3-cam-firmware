@@ -9,7 +9,9 @@ firmware/
 ├── firmware.ino              # Main firmware file
 ├── battery_code.cpp          # Battery management implementation
 ├── device_status.cpp         # Device status implementation
-├── power_management.cpp      # Power management implementation
+├── power_management/         # Power management system
+│   ├── power_management.cpp   # Power management implementation
+│   └── power_management.h     # Power management header
 ├── STRUCTURE.md              # This file - structure documentation
 ├── readme.md                 # Build instructions and hardware info
 ├── hardware/                 # Hardware abstraction layer
@@ -124,7 +126,7 @@ This hybrid approach gives us the benefits of organized headers while maintainin
 #include "core/battery_code.h"
 #include "core/device_status.h"
 #include "utils/mulaw.h"
-#include "utils/timing.h"
+#include "system/clock/timing.h"
 #include "utils/power_management.h"
 ```
 

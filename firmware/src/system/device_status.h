@@ -5,8 +5,8 @@
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
-#include "../platform/constants.h"
-#include "../platform/xiao_esp32s3_constants.h"
+#include "../hal/constants.h"
+#include "../hal/xiao_esp32s3_constants.h"
 
 extern BLECharacteristic *deviceStatusCharacteristic;
 extern uint8_t deviceStatus;
