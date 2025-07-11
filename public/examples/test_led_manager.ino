@@ -7,7 +7,7 @@
 // Uncomment the next line to enable external RGB LED support
 // #define RGB_LED_ENABLED
 
-#include "../src/features/led/led_manager.h"
+#include "../src/hal/led/led_manager.h"
 #include "../src/hal/xiao_esp32s3_constants.h"
 
 void setup() {

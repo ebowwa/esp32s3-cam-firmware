@@ -1,5 +1,5 @@
 #include "charging_manager.h"
-#include "../../features/led/led_manager.h"
+#include "../../hal/led/led_manager.h"
 #include "../device_status.h"
 #include "../battery/battery_code.h"
 #include "../clock/timing.h"

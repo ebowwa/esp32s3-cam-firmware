@@ -2,7 +2,7 @@
 #include "../charging/charging_manager.h"
 #include "../battery/battery_code.h"
 #include "../device_status.h"
-#include "../../features/led/led_manager.h"
+#include "../../hal/led/led_manager.h"
 #include "../power_management/power_management.h"
 #include "../memory/memory_utils.h"
 // #include "../../utils/hotspot_manager.h"  // DISABLED: Causes BLE interference

@@ -1,5 +1,5 @@
 #include "ble_callbacks.h"
-#include "../led/led_manager.h"
+#include "../../hal/led/led_manager.h"
 #include "../../system/device_status.h"
 // #include "../utils/hotspot_manager.h"  // DISABLED: Causes BLE interference
 

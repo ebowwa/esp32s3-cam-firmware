@@ -9,7 +9,7 @@
 #include "src/system/memory/memory_utils.h"
 // #include "src/utils/hotspot_manager.h"  // DISABLED: Causes BLE interference
 #include "src/system/cycles/cycle_manager.h"
-#include "src/features/led/led_manager.h"
+#include "src/hal/led/led_manager.h"
 #include "src/system/battery/battery_code.h"
 #include "src/system/charging/charging_manager.h"
 #include "src/hal/constants.h"

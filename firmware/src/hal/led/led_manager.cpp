@@ -1,131 +1,18 @@
-#ifndef LED_MANAGER_H
-#define LED_MANAGER_H
+#include "led_manager.h"
 
-#include <Arduino.h>
-#include "../../hal/xiao_esp32s3_constants.h"
-#include "../../system/clock/timing.h"
-
-// ===================================================================
-// DUAL LED MANAGEMENT FOR XIAO ESP32-S3
-// ===================================================================
-
-/**
- * Dual LED Configuration for XIAO ESP32-S3
- * 
- * The XIAO ESP32-S3 has two LEDs:
- * 1. User LED (GPIO21) - Programmable, controlled by firmware
- * 2. Charge LED (hardware controlled) - Shows charging status automatically
- * 
- * This manager intelligently uses both LEDs for comprehensive status indication:
- * - Primary status indication via User LED (GPIO21)
- * - Secondary/complementary indication via external RGB LED (optional)
- * - Charge LED provides automatic charging status
- * 
- * For enhanced RGB support, connect an external WS2812/NeoPixel LED to any GPIO
- */
-
-// Uncomment the next line to enable external RGB LED support
-// #define RGB_LED_ENABLED
+// Global dual LED state variable
+dual_led_state_t dualLedState;
 
 #ifdef RGB_LED_ENABLED
-#include <FastLED.h>
-#define RGB_LED_PIN 2           // GPIO pin for external RGB LED (configurable)
-#define RGB_LED_COUNT 1         // Number of RGB LEDs
-#define RGB_LED_TYPE WS2812B    // LED type (WS2812B, WS2812, etc.)
-#define RGB_COLOR_ORDER GRB     // Color order (GRB, RGB, etc.)
-#define RGB_LED_BRIGHTNESS 50   // Default brightness (0-255)
+// RGB LED array for FastLED
+CRGB leds[RGB_LED_COUNT];
 #endif
 
-/**
- * LED status patterns for different device states
- */
-typedef enum {
-    LED_OFF,                    // Both LEDs off
-    LED_ON,                     // User LED on (solid)
-    LED_BLINK_SLOW,            // Slow blink (1Hz)
-    LED_BLINK_FAST,            // Fast blink (5Hz)
-    LED_BLINK_VERY_FAST,       // Very fast blink (10Hz)
-    LED_PULSE,                 // Breathing pattern
-    LED_HEARTBEAT,             // Double blink pattern
-    LED_SOS,                   // SOS pattern (... --- ...)
-    LED_STARTUP,               // Startup pattern (rainbow or fast blink sequence)
-    LED_ERROR,                 // Error pattern (rapid blink)
-    LED_CONNECTED,             // Connected pattern (slow pulse)
-    LED_DISCONNECTED,          // Disconnected pattern (single blink)
-    LED_CHARGING,              // Charging pattern (handled by hardware charge LED)
-    LED_LOW_BATTERY,           // Low battery pattern (slow double blink)
-    LED_STREAMING,             // Streaming pattern (fast pulse)
-    LED_PHOTO_CAPTURE,         // Photo capture pattern (single flash)
-    LED_FACTORY_RESET,         // Factory reset pattern (rapid sequence)
-    LED_DUAL_INDICATION        // Special dual LED pattern
-} led_pattern_t;
+// ===================================================================
+// LED MANAGER IMPLEMENTATION
+// ===================================================================
 
-/**
- * Dual LED mode configuration
- */
-typedef enum {
-    DUAL_LED_MODE_SINGLE,      // Use only User LED (GPIO21)
-    DUAL_LED_MODE_DUAL_BASIC,  // Use User LED + monitor charge LED status
-    DUAL_LED_MODE_RGB_ENHANCED // Use User LED + external RGB LED
-} dual_led_mode_t;
-
-/**
- * RGB LED colors with full color support
- */
-typedef struct {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} rgb_color_t;
-
-// Predefined colors
-#define LED_COLOR_OFF       {0, 0, 0}
-#define LED_COLOR_WHITE     {255, 255, 255}
-#define LED_COLOR_RED       {255, 0, 0}
-#define LED_COLOR_GREEN     {0, 255, 0}
-#define LED_COLOR_BLUE      {0, 0, 255}
-#define LED_COLOR_YELLOW    {255, 255, 0}
-#define LED_COLOR_PURPLE    {128, 0, 128}
-#define LED_COLOR_CYAN      {0, 255, 255}
-#define LED_COLOR_ORANGE    {255, 165, 0}
-#define LED_COLOR_PINK      {255, 192, 203}
-#define LED_COLOR_LIME      {50, 205, 50}
-#define LED_COLOR_INDIGO    {75, 0, 130}
-#define LED_COLOR_VIOLET    {238, 130, 238}
-#define LED_COLOR_GOLD      {255, 215, 0}
-#define LED_COLOR_SILVER    {192, 192, 192}
-#define LED_COLOR_MAROON    {128, 0, 0}
-#define LED_COLOR_NAVY      {0, 0, 128}
-#define LED_COLOR_TEAL      {0, 128, 128}
-#define LED_COLOR_OLIVE     {128, 128, 0}
-
-/**
- * Dual LED state structure
- */
-typedef struct {
-    led_pattern_t pattern;
-    rgb_color_t primary_color;    // Color for User LED (intensity-based)
-    rgb_color_t secondary_color;  // Color for RGB LED (if enabled)
-    dual_led_mode_t mode;
-    bool enabled;
-    unsigned long lastUpdate;
-    int step;
-    int brightness;
-    bool user_led_state;
-    bool charge_led_detected;     // Status of hardware charge LED
-} dual_led_state_t;
-
-// Global LED state
-extern dual_led_state_t dualLedState;
-
-#ifdef RGB_LED_ENABLED
-extern CRGB leds[RGB_LED_COUNT];
-#endif
-
-/**
- * Initialize dual LED manager
- */
-static inline void initLedManager() {
+void initLedManager() {
     // Initialize User LED (GPIO21)
     pinMode(XIAO_ESP32S3_USER_LED_PIN, OUTPUT);
     digitalWrite(XIAO_ESP32S3_USER_LED_PIN, LOW);
@@ -155,10 +42,7 @@ static inline void initLedManager() {
     dualLedState.charge_led_detected = false;
 }
 
-/**
- * Set User LED state with intensity-based color simulation
- */
-static inline void setUserLed(rgb_color_t color, bool show = true) {
+void setUserLed(rgb_color_t color, bool show) {
     // For single LED, use brightness based on color intensity
     int intensity = (color.r + color.g + color.b) / 3;
     if (intensity > 0) {
@@ -170,20 +54,14 @@ static inline void setUserLed(rgb_color_t color, bool show = true) {
     }
 }
 
-/**
- * Set external RGB LED (if enabled)
- */
-static inline void setRgbLed(rgb_color_t color, bool show = true) {
+void setRgbLed(rgb_color_t color, bool show) {
 #ifdef RGB_LED_ENABLED
     leds[0] = CRGB(color.r, color.g, color.b);
     if (show) FastLED.show();
 #endif
 }
 
-/**
- * Set dual LED colors intelligently
- */
-static inline void setDualLedColors(rgb_color_t primary, rgb_color_t secondary = (rgb_color_t)LED_COLOR_OFF, bool show = true) {
+void setDualLedColors(rgb_color_t primary, rgb_color_t secondary, bool show) {
     setUserLed(primary, show);
     
     if (dualLedState.mode == DUAL_LED_MODE_RGB_ENHANCED) {
@@ -191,10 +69,7 @@ static inline void setDualLedColors(rgb_color_t primary, rgb_color_t secondary =
     }
 }
 
-/**
- * Set LED pattern with dual LED support
- */
-static inline void setLedPattern(led_pattern_t pattern, rgb_color_t primary_color = (rgb_color_t)LED_COLOR_WHITE, rgb_color_t secondary_color = (rgb_color_t)LED_COLOR_BLUE) {
+void setLedPattern(led_pattern_t pattern, rgb_color_t primary_color, rgb_color_t secondary_color) {
     dualLedState.pattern = pattern;
     dualLedState.primary_color = primary_color;
     dualLedState.secondary_color = secondary_color;
@@ -202,10 +77,7 @@ static inline void setLedPattern(led_pattern_t pattern, rgb_color_t primary_colo
     dualLedState.lastUpdate = measureStart();
 }
 
-/**
- * Update LED patterns (call this in main loop)
- */
-static inline void updateLed() {
+void updateLed() {
     if (!dualLedState.enabled) return;
     
     unsigned long elapsed = getElapsedTime(dualLedState.lastUpdate);
@@ -359,34 +231,22 @@ static inline void updateLed() {
     }
 }
 
-/**
- * Enable/disable LED manager
- */
-static inline void setLedEnabled(bool enabled) {
+void setLedEnabled(bool enabled) {
     dualLedState.enabled = enabled;
     if (!enabled) {
         setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
     }
 }
 
-/**
- * Get current LED pattern
- */
-static inline led_pattern_t getCurrentLedPattern() {
+led_pattern_t getCurrentLedPattern() {
     return dualLedState.pattern;
 }
 
-/**
- * Get current LED mode
- */
-static inline dual_led_mode_t getCurrentLedMode() {
+dual_led_mode_t getCurrentLedMode() {
     return dualLedState.mode;
 }
 
-/**
- * Immediate LED flash with dual colors (non-blocking)
- */
-static inline void flashDualLed(rgb_color_t primary = (rgb_color_t)LED_COLOR_WHITE, rgb_color_t secondary = (rgb_color_t)LED_COLOR_BLUE, int duration_ms = 100) {
+void flashDualLed(rgb_color_t primary, rgb_color_t secondary, int duration_ms) {
     static unsigned long flashStartTime = 0;
     static bool flashActive = false;
     
@@ -402,10 +262,7 @@ static inline void flashDualLed(rgb_color_t primary = (rgb_color_t)LED_COLOR_WHI
     }
 }
 
-/**
- * Set LED for device status with intelligent dual LED patterns
- */
-static inline void setLedForDeviceStatus(uint8_t status) {
+void setLedForDeviceStatus(uint8_t status) {
     switch (status) {
         case 0x01: // DEVICE_STATUS_INITIALIZING
             setLedPattern(LED_STARTUP, (rgb_color_t)LED_COLOR_CYAN, (rgb_color_t)LED_COLOR_YELLOW);
@@ -443,39 +300,38 @@ static inline void setLedForDeviceStatus(uint8_t status) {
     }
 }
 
-/**
- * Convenience functions for common dual LED patterns
- */
-static inline void setLedPatternDualRed() {
+// ===================================================================
+// CONVENIENCE FUNCTIONS
+// ===================================================================
+
+void setLedPatternDualRed() {
     setLedPattern(LED_DUAL_INDICATION, (rgb_color_t)LED_COLOR_RED, (rgb_color_t)LED_COLOR_MAROON);
 }
 
-static inline void setLedPatternDualGreen() {
+void setLedPatternDualGreen() {
     setLedPattern(LED_DUAL_INDICATION, (rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
 }
 
-static inline void setLedPatternDualBlue() {
+void setLedPatternDualBlue() {
     setLedPattern(LED_DUAL_INDICATION, (rgb_color_t)LED_COLOR_BLUE, (rgb_color_t)LED_COLOR_CYAN);
 }
 
-static inline void setLedPatternStreaming() {
+void setLedPatternStreaming() {
     setLedPattern(LED_PULSE, (rgb_color_t)LED_COLOR_BLUE, (rgb_color_t)LED_COLOR_CYAN);
 }
 
-static inline void setLedPatternPhotoCapture() {
+void setLedPatternPhotoCapture() {
     flashDualLed((rgb_color_t)LED_COLOR_WHITE, (rgb_color_t)LED_COLOR_SILVER, TIMING_VERY_SHORT);
 }
 
-static inline void setLedPatternBatteryLow() {
+void setLedPatternBatteryLow() {
     setLedPattern(LED_HEARTBEAT, (rgb_color_t)LED_COLOR_RED, (rgb_color_t)LED_COLOR_ORANGE);
 }
 
-static inline void setLedPatternConnected() {
+void setLedPatternConnected() {
     setLedPattern(LED_CONNECTED, (rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_BLUE);
 }
 
-static inline void setLedPatternDisconnected() {
+void setLedPatternDisconnected() {
     setLedPattern(LED_DISCONNECTED, (rgb_color_t)LED_COLOR_RED, (rgb_color_t)LED_COLOR_MAROON);
-}
-
-#endif // LED_MANAGER_H 
+} 

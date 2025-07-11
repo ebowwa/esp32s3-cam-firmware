@@ -1,7 +1,7 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #include "camera.h"
 #include "../../system/clock/timing.h"
-#include "../led/led_manager.h"
+#include "../../hal/led/led_manager.h"
 #include "../../system/device_status.h"
 
 // External reference to connection status
