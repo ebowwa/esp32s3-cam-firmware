@@ -1,5 +1,6 @@
 #include "battery_code.h"
 #include "../../hal/xiao_esp32s3_constants.h"
+#include "../clock/timing.h"
 
 BLECharacteristic *batteryLevelCharacteristic = nullptr;
 uint8_t batteryLevel = 100;
@@ -41,11 +42,11 @@ bool detectRapidVoltageChange(float currentVoltage) {
     }
     
     float voltageChange = abs(currentVoltage - lastStableVoltage);
-    unsigned long currentTime = millis();
+    unsigned long currentTime = measureStart();
     
     // Check for rapid voltage changes (possible connection issue)
     if (voltageChange > BATTERY_RAPID_CHANGE_THRESHOLD) {
-        if (currentTime - lastVoltageChangeTime < 5000) { // Within 5 seconds
+        if (getElapsedTime(lastVoltageChangeTime) < 5000) { // Within 5 seconds
             Serial.printf("⚠️  Rapid voltage change detected: %.2fV → %.2fV (Δ%.2fV)\n", 
                          lastStableVoltage, currentVoltage, voltageChange);
             return true;
@@ -112,7 +113,7 @@ float readUSBPowerVoltage() {
     uint32_t adcSum = 0;
     for (int i = 0; i < BATTERY_CHECK_SAMPLES; i++) {
         adcSum += analogRead(USB_POWER_ADC_PIN);
-        delay(5); // Small delay between samples
+        delay(TIMING_VERY_SHORT / 2); // Small delay between samples
     }
     
     // Calculate average ADC reading
@@ -158,7 +159,7 @@ float readBatteryVoltage() {
     uint32_t adcSum = 0;
     for (int i = 0; i < BATTERY_CHECK_SAMPLES; i++) {
         adcSum += analogRead(BATTERY_ADC_PIN);
-        delay(10); // Small delay between samples
+        delay(TIMING_VERY_SHORT); // Small delay between samples
     }
     
     // Calculate average ADC reading
@@ -251,7 +252,7 @@ void updateBatteryLevel() {
     
     batteryLevelCharacteristic->setValue(&batteryLevel, 1);
     batteryLevelCharacteristic->notify();
-    lastBatteryUpdate = millis();
+    lastBatteryUpdate = measureStart();
     
     Serial.printf("Battery status: %s | Level: %d%% | Charging: %s\n", 
                   getBatteryConnectionStatus(), batteryLevel, isCharging ? "YES" : "NO");

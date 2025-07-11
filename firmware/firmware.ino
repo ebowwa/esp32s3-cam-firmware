@@ -187,6 +187,14 @@ void setup() {
 }
 
 void loop() {
+  // Performance monitoring
+  static unsigned long loopCount = 0;
+  static unsigned long lastPerformanceReport = 0;
+  static unsigned long totalLoopTime = 0;
+  static unsigned long maxLoopTime = 0;
+  
+  unsigned long loopStart = measureStart();
+  
   // Update all cycles using centralized cycle manager
   updateCycles();
   
@@ -194,6 +202,26 @@ void loop() {
   if (photoDataUploading && !isConnected()) {
     Serial.println("Connection lost during photo/video upload, stopping");
     photoDataUploading = false;
+  }
+  
+  // Calculate loop performance
+  unsigned long loopDuration = measureEnd(loopStart);
+  totalLoopTime += loopDuration;
+  if (loopDuration > maxLoopTime) {
+    maxLoopTime = loopDuration;
+  }
+  loopCount++;
+  
+  // Report performance every 30 seconds
+  if (shouldExecute(&lastPerformanceReport, 30000)) {
+    float avgLoopTime = (float)totalLoopTime / loopCount;
+    Serial.printf("🔧 Loop Performance: Avg=%.2fms, Max=%lums, Count=%lu\n", 
+                  avgLoopTime, maxLoopTime, loopCount);
+    
+    // Reset counters
+    totalLoopTime = 0;
+    maxLoopTime = 0;
+    loopCount = 0;
   }
   
   // Small delay to prevent excessive CPU usage

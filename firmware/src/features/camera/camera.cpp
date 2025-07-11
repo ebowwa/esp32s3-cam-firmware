@@ -62,9 +62,7 @@ bool take_photo() {
     
     // Use timing utility for retry delay
     static unsigned long retryDelayTime = 0;
-    if (nonBlockingDelayStateful(&retryDelayTime, TIMING_SHORT)) {
-      // Delay completed, continue to next retry
-    } else {
+    if (!nonBlockingDelayStateful(&retryDelayTime, TIMING_SHORT)) {
       // Still waiting, but for this synchronous function we'll use blocking delay
       delay(TIMING_SHORT);
     }
@@ -109,7 +107,7 @@ void handlePhotoControl(int8_t controlValue)
     if (!photoDataUploading) {
       captureInterval = (controlValue / PHOTO_MIN_INTERVAL) * (PHOTO_MIN_INTERVAL * 1000); // Round to nearest 5 seconds and convert to milliseconds
       isCapturingPhotos = true;
-      lastCaptureTime = millis() - captureInterval;
+      lastCaptureTime = measureStart() - captureInterval;
       Serial.printf("Interval photo capture started: %d seconds\n", captureInterval / 1000);
     } else {
       Serial.println("Photo upload in progress, ignoring interval photo request");
@@ -257,8 +255,8 @@ void startVideoStreaming() {
     isStreamingVideo = true;
     currentCameraMode = CAMERA_MODE_VIDEO_STREAMING;
     streamingFPS = VIDEO_STREAM_DEFAULT_FPS;
-    lastStreamFrame = millis();
-    streamingStartTime = millis();
+    lastStreamFrame = measureStart();
+    streamingStartTime = measureStart();
     totalStreamingFrames = 0;
     droppedFrames = 0;
     configure_camera_for_streaming();
@@ -327,7 +325,7 @@ bool shouldDropFrame() {
   
   // Also drop frames if we're behind on the streaming schedule
   if (isStreamingVideo && totalStreamingFrames > 0) {
-    unsigned long expectedFrames = (millis() - streamingStartTime) / VIDEO_STREAM_FRAME_INTERVAL(streamingFPS);
+    unsigned long expectedFrames = getElapsedTime(streamingStartTime) / VIDEO_STREAM_FRAME_INTERVAL(streamingFPS);
     if (totalStreamingFrames < expectedFrames * 0.5) { // If we're less than 50% of expected rate
       droppedFrames++;
       Serial.printf("Dropping frame #%d (behind schedule: %d/%d)\n", droppedFrames, totalStreamingFrames, expectedFrames);

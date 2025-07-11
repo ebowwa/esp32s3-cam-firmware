@@ -2,6 +2,7 @@
 #include "../../features/led/led_manager.h"
 #include "../device_status.h"
 #include "../battery/battery_code.h"
+#include "../clock/timing.h"
 
 // BLE Characteristics
 BLECharacteristic *chargingStateCharacteristic = nullptr;
@@ -98,7 +99,7 @@ void updateChargingStatus() {
     checkUSBConnectionEvent();
     
     // Only do full charging update on timer
-    if (millis() - lastChargingUpdate < CHARGING_UPDATE_INTERVAL) {
+    if (!shouldExecute(&lastChargingUpdate, CHARGING_UPDATE_INTERVAL)) {
         return;
     }
     
@@ -124,7 +125,7 @@ void updateChargingStatus() {
         if (chargingStats.state == CHARGING_STATE_NOT_CHARGING && 
             newState != CHARGING_STATE_NOT_CHARGING) {
             // Charging started
-            chargingStartTime = millis();
+            chargingStartTime = measureStart();
             Serial.println("🔋 Charging started");
         } else if (chargingStats.state != CHARGING_STATE_NOT_CHARGING && 
                    newState == CHARGING_STATE_NOT_CHARGING) {
@@ -139,7 +140,7 @@ void updateChargingStatus() {
     
     // Update timing
     if (chargingStats.state != CHARGING_STATE_NOT_CHARGING) {
-        chargingStats.time_elapsed = millis() - chargingStartTime;
+        chargingStats.time_elapsed = getElapsedTime(chargingStartTime);
         chargingStats.time_remaining = estimateTimeToFull();
     } else {
         chargingStats.time_elapsed = 0;
@@ -147,9 +148,8 @@ void updateChargingStatus() {
     }
     
     // Safety checks
-    if (millis() - lastSafetyCheck >= CHARGING_SAFETY_CHECK_INTERVAL) {
+    if (shouldExecute(&lastSafetyCheck, CHARGING_SAFETY_CHECK_INTERVAL)) {
         chargingStats.safety_status = checkChargingSafety();
-        lastSafetyCheck = millis();
         
         if (chargingStats.safety_status != CHARGING_SAFETY_OK) {
             handleChargingError(chargingStats.safety_status);
@@ -158,8 +158,6 @@ void updateChargingStatus() {
     
     // Notify BLE clients
     notifyChargingClients();
-    
-    lastChargingUpdate = millis();
 }
 
 charging_state_t determineChargingState() {
@@ -302,7 +300,7 @@ uint32_t estimateTimeToFull() {
 void recordChargingHistory() {
     charging_history_entry_t *entry = &chargingHistory[chargingHistoryIndex];
     
-    entry->timestamp = millis();
+    entry->timestamp = measureStart();
     entry->duration = chargingStats.time_elapsed;
     entry->start_level = 0; // Would need to track this
     entry->end_level = chargingStats.charge_level;
@@ -480,24 +478,9 @@ void checkUSBConnectionEvent() {
         Serial.printf("USB voltage detected: %.2fV\n", chargingStats.usb_voltage);
         
         // Flash green LEDs immediately to indicate USB connection
-        Serial.println("Flash 1...");
-        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
-        delay(200);
-        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
-        delay(100);
-        
-        Serial.println("Flash 2...");
-        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
-        delay(200);
-        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
-        delay(100);
-        
-        Serial.println("Flash 3...");
-        setDualLedColors((rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
-        delay(200);
-        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
-        
-        Serial.println("✅ Green flash sequence completed!");
+        Serial.println("✅ USB connected - setting charging LED pattern");
+        setLedPattern(LED_STARTUP, (rgb_color_t)LED_COLOR_GREEN, (rgb_color_t)LED_COLOR_LIME);
+        Serial.println("✅ Green flash sequence started!");
         
         // Trigger immediate full charging status update
         lastChargingUpdate = 0; // Force immediate update

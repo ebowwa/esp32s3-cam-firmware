@@ -10,6 +10,7 @@
 #include "../../features/bluetooth/ble_manager.h"
 #include "../../features/bluetooth/characteristics/ble_characteristics.h"
 #include "../../hal/constants.h"
+#include "../clock/timing.h"
 #include "esp_camera.h"
 #include <BLECharacteristic.h>
 
@@ -243,15 +244,15 @@ namespace PowerCycles {
             "SleepManagement",
             10000, // Check every 10 seconds
             []() {
-                static unsigned long lastActivityTime = millis();
+                static unsigned long lastActivityTime = measureStart();
                 
                 // Update activity time if there's active operation
                 if (isConnected() || isCapturingPhotos || photoDataUploading || isStreamingVideo) {
-                    lastActivityTime = millis();
+                    lastActivityTime = measureStart();
                 }
                 
                 // Check if we should enter power saving mode
-                unsigned long idleTime = millis() - lastActivityTime;
+                unsigned long idleTime = getElapsedTime(lastActivityTime);
                 if (shouldEnterPowerSaving(batteryLevel, idleTime)) {
                     // Enter light sleep for a short period if idle
                     if (idleTime > POWER_IDLE_TIMEOUT_MS && !isConnected()) {
@@ -360,7 +361,7 @@ namespace DataCycles {
                 
                 // Check if we should capture based on control flags
                 bool should_capture = isCapturingPhotos && (captureInterval == 0 || 
-                    (millis() - lastCaptureTime) >= (captureInterval * 1000));
+                    getElapsedTime(lastCaptureTime) >= (captureInterval * 1000));
                 
                 return should_capture;
             },
@@ -373,7 +374,7 @@ namespace DataCycles {
                     
                     // Set flags for data transmission
                     photoDataUploading = true;
-                    lastCaptureTime = millis();
+                    lastCaptureTime = measureStart();
                     
                     // Update capture count
                     if (captureInterval == 0) {
@@ -463,8 +464,7 @@ namespace CommCycles {
                     Serial.printf("Sent photo frame %d: %d bytes (total: %d/%d)\n", 
                                  sent_photo_frames, chunk_size, sent_photo_bytes, fb->len);
                     
-                    // Delay to prevent overwhelming the BLE stack
-                    delay(20);
+                    // Note: BLE transmission throttling is handled by the cycle manager timing
                 } else {
                     // Transmission complete - send end marker
                     Serial.printf("Photo transmission complete: %d bytes in %d frames\n", 

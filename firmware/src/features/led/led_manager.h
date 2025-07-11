@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../../hal/xiao_esp32s3_constants.h"
+#include "../../system/clock/timing.h"
 
 // ===================================================================
 // DUAL LED MANAGEMENT FOR XIAO ESP32-S3
@@ -147,7 +148,7 @@ static inline void initLedManager() {
     dualLedState.primary_color = (rgb_color_t)LED_COLOR_WHITE;
     dualLedState.secondary_color = (rgb_color_t)LED_COLOR_BLUE;
     dualLedState.enabled = true;
-    dualLedState.lastUpdate = 0;
+    dualLedState.lastUpdate = measureStart();
     dualLedState.step = 0;
     dualLedState.brightness = 255;
     dualLedState.user_led_state = false;
@@ -198,7 +199,7 @@ static inline void setLedPattern(led_pattern_t pattern, rgb_color_t primary_colo
     dualLedState.primary_color = primary_color;
     dualLedState.secondary_color = secondary_color;
     dualLedState.step = 0;
-    dualLedState.lastUpdate = millis();
+    dualLedState.lastUpdate = measureStart();
 }
 
 /**
@@ -207,8 +208,7 @@ static inline void setLedPattern(led_pattern_t pattern, rgb_color_t primary_colo
 static inline void updateLed() {
     if (!dualLedState.enabled) return;
     
-    unsigned long currentTime = millis();
-    unsigned long elapsed = currentTime - dualLedState.lastUpdate;
+    unsigned long elapsed = getElapsedTime(dualLedState.lastUpdate);
     
     switch (dualLedState.pattern) {
         case LED_OFF:
@@ -220,38 +220,38 @@ static inline void updateLed() {
             break;
             
         case LED_BLINK_SLOW:
-            if (elapsed > 500) {
+            if (elapsed > TIMING_MEDIUM) {
                 if (dualLedState.step % 2 == 0) {
                     setDualLedColors(dualLedState.primary_color, dualLedState.secondary_color);
                 } else {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
         case LED_BLINK_FAST:
-            if (elapsed > 100) {
+            if (elapsed > TIMING_SHORT) {
                 if (dualLedState.step % 2 == 0) {
                     setDualLedColors(dualLedState.primary_color, dualLedState.secondary_color);
                 } else {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
         case LED_BLINK_VERY_FAST:
-            if (elapsed > 50) {
+            if (elapsed > TIMING_VERY_SHORT) {
                 if (dualLedState.step % 2 == 0) {
                     setDualLedColors(dualLedState.primary_color, dualLedState.secondary_color);
                 } else {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
@@ -270,12 +270,12 @@ static inline void updateLed() {
                 };
                 setDualLedColors(dimmed_primary, dimmed_secondary);
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
         case LED_HEARTBEAT:
-            if (elapsed > 100) {
+            if (elapsed > TIMING_SHORT) {
                 int pattern[] = {1, 0, 1, 0, 0, 0, 0, 0};
                 int index = dualLedState.step % 8;
                 if (pattern[index]) {
@@ -284,7 +284,7 @@ static inline void updateLed() {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
@@ -299,12 +299,12 @@ static inline void updateLed() {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
         case LED_STARTUP:
-            if (elapsed > 100) {
+            if (elapsed > TIMING_SHORT) {
                 // Startup sequence: alternating pattern between LEDs
                 if (dualLedState.step < 10) {
                     if (dualLedState.step % 2 == 0) {
@@ -320,7 +320,7 @@ static inline void updateLed() {
                     dualLedState.pattern = LED_OFF; // End pattern
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
@@ -340,20 +340,20 @@ static inline void updateLed() {
                 }
                 
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
             
         default:
             // Default to simple blink
-            if (elapsed > 500) {
+            if (elapsed > TIMING_MEDIUM) {
                 if (dualLedState.step % 2 == 0) {
                     setDualLedColors(dualLedState.primary_color, dualLedState.secondary_color);
                 } else {
                     setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
                 }
                 dualLedState.step++;
-                dualLedState.lastUpdate = currentTime;
+                dualLedState.lastUpdate = measureStart();
             }
             break;
     }
@@ -384,12 +384,22 @@ static inline dual_led_mode_t getCurrentLedMode() {
 }
 
 /**
- * Immediate LED flash with dual colors
+ * Immediate LED flash with dual colors (non-blocking)
  */
 static inline void flashDualLed(rgb_color_t primary = (rgb_color_t)LED_COLOR_WHITE, rgb_color_t secondary = (rgb_color_t)LED_COLOR_BLUE, int duration_ms = 100) {
-    setDualLedColors(primary, secondary);
-    delay(duration_ms);
-    setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
+    static unsigned long flashStartTime = 0;
+    static bool flashActive = false;
+    
+    if (!flashActive) {
+        // Start flash
+        setDualLedColors(primary, secondary);
+        flashStartTime = measureStart();
+        flashActive = true;
+    } else if (getElapsedTime(flashStartTime) >= duration_ms) {
+        // End flash
+        setDualLedColors((rgb_color_t)LED_COLOR_OFF, (rgb_color_t)LED_COLOR_OFF);
+        flashActive = false;
+    }
 }
 
 /**
@@ -453,7 +463,7 @@ static inline void setLedPatternStreaming() {
 }
 
 static inline void setLedPatternPhotoCapture() {
-    flashDualLed((rgb_color_t)LED_COLOR_WHITE, (rgb_color_t)LED_COLOR_SILVER, 50);
+    flashDualLed((rgb_color_t)LED_COLOR_WHITE, (rgb_color_t)LED_COLOR_SILVER, TIMING_VERY_SHORT);
 }
 
 static inline void setLedPatternBatteryLow() {

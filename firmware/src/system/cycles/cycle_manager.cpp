@@ -1,5 +1,6 @@
 #include "cycle_manager.h"
 #include <Arduino.h>
+#include "../clock/timing.h"
 
 // ===================================================================
 // GLOBAL CYCLE MANAGER STATE
@@ -44,7 +45,7 @@ void initializeCycleManager() {
     cycle_count = 0;
     total_cycles_executed = 0;
     total_execution_time = 0;
-    last_manager_update = millis();
+    last_manager_update = measureStart();
     
     cycle_manager_initialized = true;
     Serial.println("Cycle Manager initialized");
@@ -69,8 +70,8 @@ int registerCycle(const cycle_config_t& config) {
     int cycle_id = cycle_count++;
     cycles[cycle_id].config = config;
     cycles[cycle_id].runtime.state = config.enabled ? CYCLE_STATE_ACTIVE : CYCLE_STATE_INACTIVE;
-    cycles[cycle_id].runtime.last_execution = millis();
-    cycles[cycle_id].runtime.next_execution = millis() + config.interval_ms;
+    cycles[cycle_id].runtime.last_execution = measureStart();
+    cycles[cycle_id].runtime.next_execution = measureStart() + config.interval_ms;
     
     Serial.printf("Registered cycle '%s' (ID: %d, Priority: %d)\n", 
                   config.name, cycle_id, config.priority);
@@ -83,7 +84,7 @@ void updateCycles() {
         return;
     }
     
-    unsigned long current_time = millis();
+    unsigned long current_time = measureStart();
     unsigned long manager_start = current_time;
     
     // Process cycles by priority
@@ -103,11 +104,11 @@ void updateCycles() {
             // Check execution condition based on mode
             switch (cycle->config.mode) {
                 case CYCLE_MODE_INTERVAL:
-                    should_execute = (current_time - cycle->runtime.last_execution) >= cycle->config.interval_ms;
+                    should_execute = hasTimedOut(cycle->runtime.last_execution, cycle->config.interval_ms);
                     break;
                     
                 case CYCLE_MODE_TIMEOUT:
-                    should_execute = (current_time - cycle->runtime.last_execution) >= cycle->config.timeout_ms;
+                    should_execute = hasTimedOut(cycle->runtime.last_execution, cycle->config.timeout_ms);
                     if (should_execute && cycle->config.one_shot) {
                         cycle->runtime.state = CYCLE_STATE_COMPLETED;
                     }
@@ -139,7 +140,7 @@ void updateCycles() {
     }
     
     // Update manager statistics
-    unsigned long manager_duration = millis() - manager_start;
+    unsigned long manager_duration = measureEnd(manager_start);
     total_execution_time += manager_duration;
     last_manager_update = current_time;
 }
@@ -157,7 +158,7 @@ void executeCycle(cycle_t* cycle, unsigned long current_time) {
         total_cycles_executed++;
         
         // Calculate execution time
-        unsigned long execution_time = millis() - execution_start;
+        unsigned long execution_time = measureEnd(execution_start);
         cycle->runtime.total_execution_time += execution_time;
         if (execution_time > cycle->runtime.max_execution_time) {
             cycle->runtime.max_execution_time = execution_time;
@@ -188,7 +189,7 @@ bool updatePatternCycle(cycle_t* cycle, unsigned long current_time) {
     
     // Check if current pattern step is complete
     pattern_step_t* current_step = &cycle->config.pattern[cycle->runtime.pattern_step];
-    unsigned long step_elapsed = current_time - cycle->runtime.pattern_step_start;
+    unsigned long step_elapsed = getElapsedTime(cycle->runtime.pattern_step_start);
     
     if (step_elapsed >= current_step->duration_ms) {
         // Move to next pattern step
@@ -258,7 +259,7 @@ void printCycleManagerStats() {
     Serial.printf("Total cycles: %d\n", cycle_count);
     Serial.printf("Total executions: %lu\n", total_cycles_executed);
     Serial.printf("Total execution time: %lu ms\n", total_execution_time);
-    Serial.printf("Last update: %lu ms ago\n", millis() - last_manager_update);
+    Serial.printf("Last update: %lu ms ago\n", getElapsedTime(last_manager_update));
     
     Serial.println("\nCycle Summary:");
     for (size_t i = 0; i < cycle_count; i++) {
