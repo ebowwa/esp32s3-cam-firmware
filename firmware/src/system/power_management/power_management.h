@@ -50,9 +50,12 @@ typedef struct {
     power_mode_t mode;         // Current power mode
 } power_stats_t;
 
-// Global power statistics
-extern power_stats_t currentPowerStats;
-extern power_mode_t currentPowerMode;
+// Global power statistics - defined only once
+#ifndef POWER_MANAGEMENT_GLOBALS_DEFINED
+#define POWER_MANAGEMENT_GLOBALS_DEFINED
+static power_stats_t currentPowerStats = {0};
+static power_mode_t currentPowerMode = POWER_MODE_BALANCED;
+#endif
 
 /**
  * Initialize power management system

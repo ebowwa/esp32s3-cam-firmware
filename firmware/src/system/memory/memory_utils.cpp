@@ -1,4 +1,5 @@
 #include "memory_utils.h"
+#include "../serial/serial.h"
 
 // ===================================================================
 // GLOBAL MEMORY MANAGEMENT STATE
@@ -15,7 +16,7 @@ memory_allocation_t trackedAllocations[MAX_TRACKED_ALLOCATIONS];
 // ===================================================================
 
 void initializeMemoryManager() {
-    Serial.println("Initializing Memory Manager...");
+    SerialSystem::info("Initializing Memory Manager...", MODULE_MEMORY);
     
     // Clear tracking array
     for (int i = 0; i < MAX_TRACKED_ALLOCATIONS; i++) {
@@ -34,8 +35,8 @@ void initializeMemoryManager() {
     
     updateMemoryStats();
     
-    Serial.printf("Memory Manager initialized - PSRAM: %s\n", 
-                  memoryStats.psram_available ? "Available" : "Not Available");
+    SerialSystem::infof(MODULE_MEMORY, "Memory Manager initialized - PSRAM: %s", 
+                       memoryStats.psram_available ? "Available" : "Not Available");
 }
 
 void updateMemoryStats() {
@@ -178,10 +179,10 @@ void* safeAllocate(size_t size, memory_preference_t preference, const char* tag)
     
     if (ptr) {
         trackAllocation(ptr, size, caps, tag);
-        Serial.printf("Allocated %d bytes in %s for %s\n", size, 
-                      (caps == MALLOC_CAP_SPIRAM) ? "PSRAM" : "DRAM", tag);
+        SerialSystem::debugf(MODULE_MEMORY, "Allocated %d bytes in %s for %s", size, 
+                            (caps == MALLOC_CAP_SPIRAM) ? "PSRAM" : "DRAM", tag);
     } else {
-        Serial.printf("❌ Failed to allocate %d bytes for %s\n", size, tag);
+        SerialSystem::errorf(MODULE_MEMORY, "Failed to allocate %d bytes for %s", size, tag);
     }
     
     return ptr;

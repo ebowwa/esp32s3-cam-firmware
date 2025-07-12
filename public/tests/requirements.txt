@@ -1,0 +1,4 @@
+pyserial>=3.5
+bleak>=0.20.0
+numpy>=1.21.0
+wave 

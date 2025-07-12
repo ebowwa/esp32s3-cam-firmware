@@ -1,28 +1,23 @@
 #define CAMERA_MODEL_XIAO_ESP32S3
 #define XIAO_ESP32S3_SENSE  // Enable Sense version constants
-#include <I2S.h>
 #include "esp_camera.h"
 #include "src/hal/camera_pins.h"
-#include "src/utils/mulaw.h"
+#include "src/features/microphone/mulaw.h"
 #include "src/system/clock/timing.h"
 #include "src/system/power_management/power_management.h"
 #include "src/system/memory/memory_utils.h"
 // #include "src/utils/hotspot_manager.h"  // DISABLED: Causes BLE interference
 #include "src/system/cycles/cycle_manager.h"
+#include "src/system/cycles/specialized_cycles.h"
 #include "src/hal/led/led_manager.h"
 #include "src/system/battery/battery_code.h"
-#include "src/system/charging/charging_manager.h"
+// #include "src/system/charging/charging_manager.h"  // DISABLED: Compilation issues
 #include "src/hal/constants.h"
 #include "src/status/device_status.h"
 #include "src/features/camera/camera.h"
 #include "src/features/bluetooth/ble_manager.h"
-
-// Audio
-
-#ifdef CODEC_OPUS
-#include <opus.h>
-OpusEncoder *opus_encoder = nullptr;
-#endif
+#include "src/features/microphone/microphone_manager.h"
+#include "src/system/serial/serial.h"
 
 // State variables
 // Note: BLE connection state is now managed by BLE manager
@@ -46,40 +41,7 @@ void handleVideoControl(uint8_t controlValue);
 // handlePhotoControl function is now defined in camera_simple.cpp
 // updateVideoStatus function is now in src/features/bluetooth/characteristics/ble_characteristics.cpp
 
-//
-// Microphone
-//
-
-uint8_t *s_recording_buffer = nullptr;
-static uint8_t *s_compressed_frame = nullptr;
-uint8_t *s_compressed_frame_2 = nullptr;
-
-void configure_microphone() {
-  // start I2S at 16 kHz with 16-bits per sample
-  I2S.setAllPins(-1, I2S_WS_PIN, I2S_SCK_PIN, -1, -1);
-  if (!I2S.begin(PDM_MONO_MODE, SAMPLE_RATE, SAMPLE_BITS)) {
-    Serial.println("Failed to initialize I2S!");
-    updateDeviceStatus(DEVICE_STATUS_ERROR);
-    while (1); // do nothing
-  }
-
-  // Allocate buffers with tracking
-  s_recording_buffer = (uint8_t *) PS_CALLOC_TRACKED(RECORDING_BUFFER_SIZE, sizeof(uint8_t), "AudioRecording");
-  s_compressed_frame = (uint8_t *) PS_CALLOC_TRACKED(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t), "AudioCompressed");
-  s_compressed_frame_2 = (uint8_t *) PS_CALLOC_TRACKED(COMPRESSED_BUFFER_SIZE, sizeof(uint8_t), "AudioCompressed2");
-  
-  if (!s_recording_buffer || !s_compressed_frame || !s_compressed_frame_2) {
-    Serial.println("Failed to allocate audio buffers!");
-    updateDeviceStatus(DEVICE_STATUS_ERROR);
-    while (1); // do nothing
-  }
-}
-
-size_t read_microphone() {
-  size_t bytes_recorded = 0;
-  esp_i2s::i2s_read(esp_i2s::I2S_NUM_0, s_recording_buffer, RECORDING_BUFFER_SIZE, &bytes_recorded, portMAX_DELAY);
-  return bytes_recorded;
-}
+// Microphone functionality moved to MicrophoneManager class
 
 //
 // Camera functions are now defined in camera_simple.cpp
@@ -94,20 +56,21 @@ size_t read_microphone() {
 // static uint8_t *s_compressed_frame_2 = nullptr;
 // static size_t compressed_buffer_size = 400 + 3;
 void setup() {
-  Serial.begin(XIAO_ESP32S3_SERIAL_BAUD_RATE);
-  Serial.println("OpenGlass starting up...");
+  // Initialize the unified serial system
+  SerialSystem::initialize();
+  SerialSystem::info("OpenGlass starting up...", MODULE_MAIN);
   
   // Initialize LED manager first for early status indication
   initLedManager();
   
   // Print wake-up reason
-  Serial.printf("Wake-up reason: %s\n", getWakeupReason());
+  SerialSystem::infof(MODULE_MAIN, "Wake-up reason: %s", getWakeupReason());
   
   // Initialize power management
   initializePowerManagement();
   
   // Initialize charging manager
-  initializeChargingManager();
+  // initializeChargingManager();  // DISABLED: Compilation issues
   
   // Initialize memory manager
   initializeMemoryManager();
@@ -120,70 +83,62 @@ void setup() {
   
   updateDeviceStatus(DEVICE_STATUS_BLE_INIT);
   configureBLE();
-  Serial.println("BLE configured");
-  
-#ifdef CODEC_OPUS
-  int opus_err;
-  opus_encoder = opus_encoder_create(SAMPLE_RATE, CHANNELS, OPUS_APPLICATION, &opus_err);
-  if (opus_err != OPUS_OK || !opus_encoder)
-  {
-    Serial.println("Failed to create Opus encoder!");
-    updateDeviceStatus(DEVICE_STATUS_ERROR);
-    while (1)
-      ; // do nothing
-  }
-  opus_encoder_ctl(opus_encoder, OPUS_SET_BITRATE(OPUS_BITRATE));
-  Serial.println("Opus encoder configured");
-#endif
+  SerialSystem::logInitialization("BLE", true, MODULE_BLE);
   
   updateDeviceStatus(DEVICE_STATUS_MICROPHONE_INIT);
-  configure_microphone();
-  Serial.println("Microphone configured");
+  if (!MicrophoneManager::initialize()) {
+    SerialSystem::logInitialization("Microphone Manager", false, MODULE_MICROPHONE);
+    updateDeviceStatus(DEVICE_STATUS_ERROR);
+    while (1); // do nothing
+  }
+  
+  if (!MicrophoneManager::configure()) {
+    SerialSystem::logError("Microphone", "Configuration failed", MODULE_MICROPHONE);
+    updateDeviceStatus(DEVICE_STATUS_ERROR);
+    while (1); // do nothing
+  }
+  SerialSystem::logInitialization("Microphone", true, MODULE_MICROPHONE);
   
   updateDeviceStatus(DEVICE_STATUS_CAMERA_INIT);
   configure_camera();
-  Serial.println("Camera configured");
+  SerialSystem::logInitialization("Camera", true, MODULE_CAMERA);
   
   // Test camera functionality
-  Serial.println("Testing camera functionality...");
+  SerialSystem::info("Testing camera functionality...", MODULE_CAMERA);
   if (take_photo()) {
-    Serial.printf("✅ Camera test successful! Photo size: %d bytes\n", fb->len);
+    SerialSystem::logPhotoCapture(fb->len, "test");
     if (fb) {
       esp_camera_fb_return(fb);
       fb = nullptr;
     }
   } else {
-    Serial.println("❌ Camera test failed - device will be in ERROR state");
+    SerialSystem::logError("Camera", "Test photo failed - device will be in ERROR state", MODULE_CAMERA);
     updateDeviceStatus(DEVICE_STATUS_ERROR);
     // Continue with setup but device will remain in error state
   }
   
   // Check battery presence
-  Serial.println("Checking battery connection...");
+  SerialSystem::info("Checking battery connection...", MODULE_BATTERY);
   if (!checkBatteryPresence()) {
-    Serial.println("WARNING: No lithium battery detected!");
+    SerialSystem::warning("No lithium battery detected!", MODULE_BATTERY);
     updateDeviceStatus(DEVICE_STATUS_BATTERY_NOT_DETECTED);
     delay(TIMING_LONG); // Give time to see the warning
   } else {
-    Serial.println("Battery detected and connected");
+    SerialSystem::info("Battery detected and connected", MODULE_BATTERY);
   }
   
   updateDeviceStatus(DEVICE_STATUS_WARMING_UP);
-  Serial.println("Device warming up...");
+  SerialSystem::info("Device warming up...", MODULE_MAIN);
   delay(TIMING_LONG); // Give camera and microphone time to stabilize
   
   deviceReady = true;
   updateDeviceStatus(DEVICE_STATUS_READY);
-  Serial.println("OpenGlass ready!");
+  SerialSystem::info("OpenGlass ready!", MODULE_MAIN);
   
   // Initialize all specialized cycle managers
-  ChargingCycles::initialize();
-  LEDCycles::initialize();
-  PowerCycles::initialize();
-  DataCycles::initialize();
-  CommCycles::initialize();
+  initializeSpecializedCycles();
   
-  Serial.println("All cycle managers initialized (hotspot functionality disabled)");
+  SerialSystem::logInitialization("Specialized Cycle Managers", true, MODULE_CYCLES);
 }
 
 void loop() {
@@ -200,7 +155,7 @@ void loop() {
   
   // Handle connection loss during photo/video upload
   if (photoDataUploading && !isConnected()) {
-    Serial.println("Connection lost during photo/video upload, stopping");
+    SerialSystem::warning("Connection lost during photo/video upload, stopping", MODULE_BLE);
     photoDataUploading = false;
   }
   
@@ -215,14 +170,17 @@ void loop() {
   // Report performance every 30 seconds
   if (shouldExecute(&lastPerformanceReport, 30000)) {
     float avgLoopTime = (float)totalLoopTime / loopCount;
-    Serial.printf("🔧 Loop Performance: Avg=%.2fms, Max=%lums, Count=%lu\n", 
-                  avgLoopTime, maxLoopTime, loopCount);
+    SerialSystem::infof(MODULE_SYSTEM, "🔧 Loop Performance: Avg=%.2fms, Max=%lums, Count=%lu", 
+                       avgLoopTime, maxLoopTime, loopCount);
     
     // Reset counters
     totalLoopTime = 0;
     maxLoopTime = 0;
     loopCount = 0;
   }
+  
+  // Update the serial system for periodic monitoring
+  SerialSystem::update();
   
   // Small delay to prevent excessive CPU usage
   delay(MAIN_LOOP_DELAY);

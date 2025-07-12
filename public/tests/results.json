@@ -1,0 +1,9 @@
+[
+  {
+    "test": "charging_initialization",
+    "timestamp": "2025-07-11T12:13:01.963209",
+    "success": false,
+    "found_messages": [],
+    "total_output_lines": 0
+  }
+]

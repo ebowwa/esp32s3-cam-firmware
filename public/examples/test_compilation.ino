@@ -8,7 +8,7 @@
 #include "../src/hal/constants.h"
 #include "../src/system/battery/battery_code.h"
 #include "../src/status/device_status.h"
-#include "../src/utils/mulaw.h"
+#include "../firmware/src/features/microphone/mulaw.h"
 
 void setup() {
   Serial.begin(XIAO_ESP32S3_SERIAL_BAUD_RATE);

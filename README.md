@@ -36,7 +36,8 @@ A camera firmware project for the **Seeed Studio XIAO ESP32-S3** development boa
 
 3. Compile and upload:
    ```bash
-   arduino-cli compile --build-path build --output-dir dist -e -u -p COM5 -b esp32:esp32:XIAO_ESP32S3:PSRAM=opi
+   cd firmware
+   arduino-cli compile --build-path ../build --output-dir ../dist -e -u -p COM5 -b esp32:esp32:XIAO_ESP32S3:PSRAM=opi
    ```
 
 ### Firmware Details

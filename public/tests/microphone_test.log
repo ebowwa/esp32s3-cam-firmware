@@ -1,0 +1,20 @@
+2025-07-11 12:21:29,629 - INFO - ✅ Validation Test: PASSED - Test method works
+2025-07-11 12:22:46,749 - INFO - Starting ESP32S3 Microphone Test Suite
+2025-07-11 12:22:46,751 - INFO - ==================================================
+2025-07-11 12:22:46,770 - INFO - Started serial monitoring on /dev/tty.usbmodem101
+2025-07-11 12:22:48,771 - INFO - Scanning for ESP32S3 device...
+2025-07-11 12:22:59,036 - INFO - Found device: OpenGlass (48CB015D-165C-F82F-239A-39A9A0CE8465)
+2025-07-11 12:23:00,250 - INFO - Connected to 48CB015D-165C-F82F-239A-39A9A0CE8465
+2025-07-11 12:23:00,279 - ERROR - Failed to connect: Characteristic 19B10007-E8F2-537E-4F6C-D104768A1214 was not found!
+2025-07-11 12:23:00,280 - ERROR - Failed to connect to device. Aborting tests.
+2025-07-11 12:23:00,280 - INFO - Disconnected from device
+2025-07-11 12:36:41,560 - INFO - Starting ESP32S3 Microphone Test Suite
+2025-07-11 12:36:41,560 - INFO - ==================================================
+2025-07-11 12:36:41,579 - INFO - Started serial monitoring on /dev/tty.usbmodem101
+2025-07-11 12:36:43,580 - INFO - Scanning for ESP32S3 device...
+2025-07-11 12:36:53,803 - INFO - Found device: OpenGlass (48CB015D-165C-F82F-239A-39A9A0CE8465)
+2025-07-11 12:36:54,091 - INFO - [SERIAL] Audio captured: 320 bytes
+2025-07-11 12:36:54,816 - INFO - Connected to 48CB015D-165C-F82F-239A-39A9A0CE8465
+2025-07-11 12:36:54,844 - ERROR - Failed to connect: Characteristic 19B10007-E8F2-537E-4F6C-D104768A1214 was not found!
+2025-07-11 12:36:54,844 - ERROR - Failed to connect to device. Aborting tests.
+2025-07-11 12:36:54,845 - INFO - Disconnected from device

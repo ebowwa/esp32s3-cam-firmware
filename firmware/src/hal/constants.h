@@ -3,8 +3,8 @@
 #include "xiao_esp32s3_constants.h"
 
 // Audio Configuration
-#define CODEC_PCM
-// #define CODEC_MULAW
+// #define CODEC_PCM
+#define CODEC_MULAW
 // #define CODEC_OPUS
 
 #ifdef CODEC_OPUS
@@ -27,15 +27,18 @@
 #endif
 
 // Audio Buffer Configuration
+// Increased buffer sizes for continuous recording instead of small frames
 #ifdef CODEC_OPUS
 static const size_t RECORDING_BUFFER_SIZE = FRAME_SIZE * 2; // 16-bit samples
 static const size_t COMPRESSED_BUFFER_SIZE = MAX_PACKET_SIZE;
 #else
 #ifdef CODEC_MULAW
-static const size_t RECORDING_BUFFER_SIZE = 400;
-static const size_t COMPRESSED_BUFFER_SIZE = 400 + 3; /* header */
+static const size_t RECORDING_BUFFER_SIZE = 3200; // Increased from 400 to 3200 (10x larger)
+static const size_t COMPRESSED_BUFFER_SIZE = 3200 + 3; /* header */
 #else
-static const size_t RECORDING_BUFFER_SIZE = FRAME_SIZE * 2; // 16-bit samples
+// PCM: Increased buffer size for continuous recording
+// 3200 samples = 200ms of audio at 16kHz (was 1600 samples = 100ms)
+static const size_t RECORDING_BUFFER_SIZE = 3200 * 2; // 6400 bytes for 16-bit samples
 static const size_t COMPRESSED_BUFFER_SIZE = RECORDING_BUFFER_SIZE + 3; /* header */
 #endif
 #endif
@@ -84,11 +87,14 @@ static const char* DEVICE_NAME = "OpenGlass";
 
 // Timing Configuration
 #define BATTERY_UPDATE_INTERVAL 60000  // 60 seconds
-#define MAIN_LOOP_DELAY 50             // Increased to 50ms to reduce stack pressure and prevent overflow
+#define MAIN_LOOP_DELAY 20             // Reduced to 20ms for better audio capture continuity
 
 // I2S Pin Configuration - Using XIAO ESP32-S3 constants
 #define I2S_WS_PIN XIAO_ESP32S3_SENSE_PIN_D11   // GPIO42
 #define I2S_SCK_PIN XIAO_ESP32S3_SENSE_PIN_D12  // GPIO41
+
+// Note: PDM pins are now configured directly in microphone_manager.cpp
+// PDM_CLK → GPIO42, PDM_DATA → GPIO41
 
 // Codec IDs for BLE
 #ifdef CODEC_OPUS

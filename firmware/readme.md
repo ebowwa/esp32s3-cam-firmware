@@ -43,7 +43,7 @@ arduino-cli board details -b esp32:esp32:XIAO_ESP32S3
 Change COM5 to the port name from the board list output
 
 ```bash
-arduino-cli compile --build-path build --output-dir dist -e -u -p COM5 -b esp32:esp32:XIAO_ESP32S3:PSRAM=opi
+arduino-cli compile --build-path ../build --output-dir ../dist -e -u -p COM5 -b esp32:esp32:XIAO_ESP32S3:PSRAM=opi
 ```
 
 ### Opus support
@@ -165,3 +165,27 @@ The system monitors for:
 - USB power presence via voltage divider
 - Battery voltage stability over time
 - Rapid voltage changes indicating connection issues
+
+
+TODO: 
+    HAL 
+        - Additional Interfaces: e-ink, LED(s)
+        - Sensors
+        - Haptic
+        - Storage/Memory
+
+    FIRMWARE
+        - BLE Mesh
+        - Toggle-able features
+        - ML Battery Optimization
+        - Hotspot Security
+        - BLE Security
+
+    USE CASES:
+    - ML TRAININD DATA COLLECTIONS
+    - ROBOTICS
+    - CAD
+    - 3D SCANNING
+    - Agriculture
+    - Space Tech
+    - ACCELERATION

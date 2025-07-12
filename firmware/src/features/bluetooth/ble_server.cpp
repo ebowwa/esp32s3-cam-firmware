@@ -2,7 +2,7 @@
 #include "services/ble_services.h"
 #include "../../status/device_status.h"
 #include "../../system/battery/battery_code.h"
-#include "../../system/charging/charging_manager.h"
+// #include "../../system/charging/charging_manager.h"  // DISABLED: Charging system removed
 
 // BLE Server instance
 BLEServer *bleServer = nullptr;
@@ -58,7 +58,7 @@ void configureBLEServer() {
     setupBatteryService(bleServer);
     
     // Setup charging service
-    setupChargingService(bleServer);
+    // setupChargingService(bleServer);  // DISABLED: Charging system removed
     
     Serial.println("BLE services configured");
 }
@@ -93,7 +93,7 @@ void startBLEAdvertising() {
     // Add service UUIDs to advertising
     advertising->addServiceUUID(BATTERY_SERVICE_UUID);
     advertising->addServiceUUID(DEVICE_INFORMATION_SERVICE_UUID);
-    advertising->addServiceUUID(CHARGING_SERVICE_UUID);
+    // advertising->addServiceUUID(CHARGING_SERVICE_UUID);  // DISABLED: Charging system removed
     
     if (mainService) {
         advertising->addServiceUUID(mainService->getUUID());
